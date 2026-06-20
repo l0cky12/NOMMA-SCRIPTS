@@ -1,0 +1,29 @@
+# .understandignore
+# Built-in defaults already excluded: node_modules/, .git/, dist/, build/, *.lock, etc.
+
+# Ansible
+**/vault.yml
+!**/vault.example.yml
+*.retry
+**/roles/external/
+
+# OS / editor junk
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+*.bak
+*.py[cod]
+*.egg-info/
+vault-password.txt
+.vault-password.txt
+
+# Crypto material — KEEP these included for PKI project analysis
+# *.key.pem
+# *.key.pem.*
+# **/private/*.pem
+# **/csr/*.pem
+# **/requests/*.pem
+# **/index.txt
+# **/serial

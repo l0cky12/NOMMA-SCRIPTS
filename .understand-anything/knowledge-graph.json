@@ -1,0 +1,207 @@
+{
+  "version": "1.0",
+  "kind": "codebase",
+  "project": {
+    "name": "nomma-pki",
+    "languages": ["yaml", "jinja2", "shell", "markdown"],
+    "frameworks": ["ansible"],
+    "description": "NOMMA Public Key Infrastructure — two-tier CA hierarchy with offline Root CA and online Issuing CA, automated via Ansible",
+    "analyzedAt": "2026-06-20T00:13:00Z",
+    "gitCommitHash": "f8a5ed026e89c06a861bf07860a65f49642a2d92"
+  },
+  "nodes": [
+    {"id": "file:README.md", "type": "document", "name": "README.md", "filePath": "README.md", "summary": "Main project documentation — NOMMA PKI two-tier CA hierarchy overview, directory structure, and security model", "tags": ["docs", "root"], "complexity": "moderate"},
+
+    {"id": "file:issuing-ca/playbooks/site.yml", "type": "file", "name": "site.yml (issuing-ca)", "filePath": "issuing-ca/playbooks/site.yml", "summary": "Master playbook for the online Issuing CA — orchestrates system hardening (user_setup, ssh_setup, ufw, fail2ban), PKI deployment (issuing_ca, certificate_issuance, crl_management), optional OCSP responder, and post-deployment validation", "tags": ["playbook", "issuing-ca", "root"], "complexity": "complex"},
+    {"id": "file:issuing-ca/inventory/hosts.yml", "type": "config", "name": "hosts.yml (issuing-ca)", "filePath": "issuing-ca/inventory/hosts.yml", "summary": "Ansible inventory defining the issuing_ca host group", "tags": ["inventory", "issuing-ca"], "complexity": "simple"},
+    {"id": "file:issuing-ca/inventory/group_vars/all/main.yml", "type": "config", "name": "main.yml (issuing-ca vars)", "filePath": "issuing-ca/inventory/group_vars/all/main.yml", "summary": "Group variables for issuing CA — defines CA paths, ports, certificate parameters, and feature flags", "tags": ["vars", "issuing-ca"], "complexity": "moderate"},
+    {"id": "file:issuing-ca/inventory/group_vars/all/vault.example.yml", "type": "config", "name": "vault.example.yml (issuing-ca)", "filePath": "issuing-ca/inventory/group_vars/all/vault.example.yml", "summary": "Example vault file showing required encrypted variables", "tags": ["vault", "issuing-ca"], "complexity": "simple"},
+    {"id": "file:issuing-ca/ansible.cfg", "type": "config", "name": "ansible.cfg (issuing-ca)", "filePath": "issuing-ca/ansible.cfg", "summary": "Ansible configuration for the issuing CA project", "tags": ["config", "issuing-ca"], "complexity": "simple"},
+    {"id": "file:issuing-ca/requirements.yml", "type": "config", "name": "requirements.yml (issuing-ca)", "filePath": "issuing-ca/requirements.yml", "summary": "Ansible Galaxy role dependencies (community.general for UFW)", "tags": ["config", "issuing-ca"], "complexity": "simple"},
+    {"id": "file:issuing-ca/README.md", "type": "document", "name": "README.md (issuing-ca)", "filePath": "issuing-ca/README.md", "summary": "Issuing CA-specific documentation — prerequisites, deployment steps, certificate issuance guide, CRL management", "tags": ["docs", "issuing-ca"], "complexity": "moderate"},
+    {"id": "file:issuing-ca/.ansible-lint", "type": "config", "name": ".ansible-lint (issuing-ca)", "filePath": "issuing-ca/.ansible-lint", "summary": "Ansible lint configuration", "tags": ["config", "issuing-ca"], "complexity": "simple"},
+    {"id": "file:issuing-ca/.yamllint", "type": "config", "name": ".yamllint (issuing-ca)", "filePath": "issuing-ca/.yamllint", "summary": "YAML lint configuration", "tags": ["config", "issuing-ca"], "complexity": "simple"},
+
+    {"id": "file:issuing-ca/roles/issuing_ca/tasks/main.yml", "type": "file", "name": "issuing_ca role tasks", "filePath": "issuing-ca/roles/issuing_ca/tasks/main.yml", "summary": "Core Issuing CA deployment — creates /opt/nomma-issuing-ca/ directory structure, deploys OpenSSL config, imports Root CA cert and signed Intermediate CA cert, generates or imports CA private key, initializes CA database, validates trust chain", "tags": ["role", "issuing-ca", "pki", "core"], "complexity": "complex"},
+    {"id": "file:issuing-ca/roles/issuing_ca/handlers/main.yml", "type": "file", "name": "issuing_ca handlers", "filePath": "issuing-ca/roles/issuing_ca/handlers/main.yml", "summary": "Handlers for the issuing_ca role (update-ca-certificates trigger)", "tags": ["role", "issuing-ca", "handler"], "complexity": "simple"},
+    {"id": "file:issuing-ca/roles/issuing_ca/templates/openssl.cnf.j2", "type": "config", "name": "openssl.cnf.j2", "filePath": "issuing-ca/roles/issuing_ca/templates/openssl.cnf.j2", "summary": "OpenSSL CA configuration template defining CA policies, extensions, and database paths for the Issuing CA", "tags": ["template", "pki", "openssl", "issuing-ca"], "complexity": "moderate"},
+
+    {"id": "file:issuing-ca/roles/certificate_issuance/tasks/main.yml", "type": "file", "name": "certificate_issuance role tasks", "filePath": "issuing-ca/roles/certificate_issuance/tasks/main.yml", "summary": "Certificate issuance infrastructure — deploys 4 certificate profile templates (server, client, infra, VPN) and creates issuance directories. Actual issuance is manual/privileged.", "tags": ["role", "issuing-ca", "pki"], "complexity": "moderate"},
+    {"id": "file:issuing-ca/roles/certificate_issuance/templates/server-cert-profile.cnf.j2", "type": "config", "name": "server-cert-profile.cnf.j2", "filePath": "issuing-ca/roles/certificate_issuance/templates/server-cert-profile.cnf.j2", "summary": "Server certificate profile template — OpenSSL extensions for server-auth certificates", "tags": ["template", "pki", "issuing-ca", "cert-profile"], "complexity": "simple"},
+    {"id": "file:issuing-ca/roles/certificate_issuance/templates/client-cert-profile.cnf.j2", "type": "config", "name": "client-cert-profile.cnf.j2", "filePath": "issuing-ca/roles/certificate_issuance/templates/client-cert-profile.cnf.j2", "summary": "Client certificate profile template — OpenSSL extensions for client-auth certificates", "tags": ["template", "pki", "issuing-ca", "cert-profile"], "complexity": "simple"},
+    {"id": "file:issuing-ca/roles/certificate_issuance/templates/infra-cert-profile.cnf.j2", "type": "config", "name": "infra-cert-profile.cnf.j2", "filePath": "issuing-ca/roles/certificate_issuance/templates/infra-cert-profile.cnf.j2", "summary": "Infrastructure certificate profile template — OpenSSL extensions for infrastructure TLS certs", "tags": ["template", "pki", "issuing-ca", "cert-profile"], "complexity": "simple"},
+    {"id": "file:issuing-ca/roles/certificate_issuance/templates/vpn-cert-profile.cnf.j2", "type": "config", "name": "vpn-cert-profile.cnf.j2", "filePath": "issuing-ca/roles/certificate_issuance/templates/vpn-cert-profile.cnf.j2", "summary": "VPN certificate profile template — OpenSSL extensions for VPN endpoint certificates", "tags": ["template", "pki", "issuing-ca", "cert-profile"], "complexity": "simple"},
+
+    {"id": "file:issuing-ca/roles/crl_management/tasks/main.yml", "type": "file", "name": "crl_management role tasks", "filePath": "issuing-ca/roles/crl_management/tasks/main.yml", "summary": "CRL lifecycle management — deploys CRL generation script, generates initial CRL, publishes to web root, validates CRL structure, installs daily cron job for auto-renewal", "tags": ["role", "issuing-ca", "pki", "crl"], "complexity": "complex"},
+    {"id": "file:issuing-ca/roles/crl_management/templates/generate-crl.sh.j2", "type": "file", "name": "generate-crl.sh.j2", "filePath": "issuing-ca/roles/crl_management/templates/generate-crl.sh.j2", "summary": "Shell script template for OpenSSL CRL generation — regenerates CRL and copies to web root, logs via logger", "tags": ["template", "script", "pki", "issuing-ca", "crl"], "complexity": "simple"},
+
+    {"id": "file:issuing-ca/roles/ocsp/tasks/main.yml", "type": "file", "name": "ocsp role tasks", "filePath": "issuing-ca/roles/ocsp/tasks/main.yml", "summary": "Optional OCSP responder deployment — installs Nginx reverse proxy, creates OCSP service user, generates signing key, deploys systemd unit and Nginx site config. Controlled by ocsp_enabled flag (default: disabled).", "tags": ["role", "issuing-ca", "pki", "ocsp", "optional"], "complexity": "complex"},
+    {"id": "file:issuing-ca/roles/ocsp/handlers/main.yml", "type": "file", "name": "ocsp handlers", "filePath": "issuing-ca/roles/ocsp/handlers/main.yml", "summary": "Handlers for OCSP role — reload systemd and Nginx", "tags": ["role", "issuing-ca", "ocsp", "handler"], "complexity": "simple"},
+    {"id": "file:issuing-ca/roles/ocsp/templates/ocsp-responder.service.j2", "type": "config", "name": "ocsp-responder.service.j2", "filePath": "issuing-ca/roles/ocsp/templates/ocsp-responder.service.j2", "summary": "Systemd unit template for the OpenSSL OCSP responder process", "tags": ["template", "systemd", "issuing-ca", "ocsp"], "complexity": "simple"},
+    {"id": "file:issuing-ca/roles/ocsp/templates/nginx-ocsp.conf.j2", "type": "config", "name": "nginx-ocsp.conf.j2", "filePath": "issuing-ca/roles/ocsp/templates/nginx-ocsp.conf.j2", "summary": "Nginx site config template — reverse proxy to local OpenSSL OCSP responder on port 8888", "tags": ["template", "nginx", "issuing-ca", "ocsp"], "complexity": "simple"},
+
+    {"id": "file:issuing-ca/roles/user_setup/tasks/main.yml", "type": "file", "name": "user_setup role tasks", "filePath": "issuing-ca/roles/user_setup/tasks/main.yml", "summary": "Creates ldecareaux administrative user with vault-encrypted password, sets up .ssh directory with secure permissions, creates certificate staging directory", "tags": ["role", "issuing-ca", "system", "user"], "complexity": "simple"},
+    {"id": "file:issuing-ca/roles/ssh_setup/tasks/main.yml", "type": "file", "name": "ssh_setup role tasks", "filePath": "issuing-ca/roles/ssh_setup/tasks/main.yml", "summary": "Installs SSH public key from control node into authorized_keys with hardened 0600 permissions", "tags": ["role", "issuing-ca", "system", "security"], "complexity": "simple"},
+    {"id": "file:issuing-ca/roles/ufw/tasks/main.yml", "type": "file", "name": "ufw role tasks", "filePath": "issuing-ca/roles/ufw/tasks/main.yml", "summary": "UFW firewall hardening — denies all inbound, allows SSH/HTTPS/HTTP, enables UFW last to prevent lockout", "tags": ["role", "issuing-ca", "security", "firewall"], "complexity": "moderate"},
+    {"id": "file:issuing-ca/roles/ufw/handlers/main.yml", "type": "file", "name": "ufw handlers", "filePath": "issuing-ca/roles/ufw/handlers/main.yml", "summary": "UFW handlers — reload firewall rules", "tags": ["role", "issuing-ca", "handler"], "complexity": "simple"},
+    {"id": "file:issuing-ca/roles/fail2ban/tasks/main.yml", "type": "file", "name": "fail2ban role tasks", "filePath": "issuing-ca/roles/fail2ban/tasks/main.yml", "summary": "Fail2Ban SSH brute-force protection — installs fail2ban, deploys jail.local template (5 retries, 60s window, 1h ban), ensures service is running", "tags": ["role", "issuing-ca", "security"], "complexity": "simple"},
+    {"id": "file:issuing-ca/roles/fail2ban/handlers/main.yml", "type": "file", "name": "fail2ban handlers", "filePath": "issuing-ca/roles/fail2ban/handlers/main.yml", "summary": "Fail2Ban handlers — restart service", "tags": ["role", "issuing-ca", "handler"], "complexity": "simple"},
+    {"id": "file:issuing-ca/roles/fail2ban/templates/jail.local.j2", "type": "config", "name": "jail.local.j2", "filePath": "issuing-ca/roles/fail2ban/templates/jail.local.j2", "summary": "Fail2Ban jail configuration template for SSH protection", "tags": ["template", "security", "issuing-ca"], "complexity": "simple"},
+
+    {"id": "file:root-ca/playbooks/site.yml", "type": "file", "name": "site.yml (root-ca)", "filePath": "root-ca/playbooks/site.yml", "summary": "Master playbook for the offline Root CA — creates Root CA, generates Intermediate CA key and CSR, signs it, exports public artifacts to root-ca/artifacts/", "tags": ["playbook", "root-ca", "root"], "complexity": "moderate"},
+    {"id": "file:root-ca/inventory/hosts.yml", "type": "config", "name": "hosts.yml (root-ca)", "filePath": "root-ca/inventory/hosts.yml", "summary": "Ansible inventory defining the root_ca host group", "tags": ["inventory", "root-ca"], "complexity": "simple"},
+    {"id": "file:root-ca/inventory/group_vars/all/main.yml", "type": "config", "name": "main.yml (root-ca vars)", "filePath": "root-ca/inventory/group_vars/all/main.yml", "summary": "Group variables for root CA — defines CA paths, key bits, validity periods, subjects, digest algorithm", "tags": ["vars", "root-ca"], "complexity": "moderate"},
+    {"id": "file:root-ca/inventory/group_vars/all/vault.example.yml", "type": "config", "name": "vault.example.yml (root-ca)", "filePath": "root-ca/inventory/group_vars/all/vault.example.yml", "summary": "Example vault file for root CA encrypted variables", "tags": ["vault", "root-ca"], "complexity": "simple"},
+    {"id": "file:root-ca/inventory/group_vars/all/vault.yml", "type": "config", "name": "vault.yml (root-ca)", "filePath": "root-ca/inventory/group_vars/all/vault.yml", "summary": "Encrypted vault file containing root CA and issuing CA key passphrases", "tags": ["vault", "root-ca", "secret"], "complexity": "simple"},
+    {"id": "file:root-ca/ansible.cfg", "type": "config", "name": "ansible.cfg (root-ca)", "filePath": "root-ca/ansible.cfg", "summary": "Ansible configuration for the root CA project", "tags": ["config", "root-ca"], "complexity": "simple"},
+    {"id": "file:root-ca/requirements.yml", "type": "config", "name": "requirements.yml (root-ca)", "filePath": "root-ca/requirements.yml", "summary": "Ansible Galaxy role dependencies for root CA project", "tags": ["config", "root-ca"], "complexity": "simple"},
+    {"id": "file:root-ca/README.md", "type": "document", "name": "README.md (root-ca)", "filePath": "root-ca/README.md", "summary": "Root CA-specific documentation — offline security model, air-gapped procedures, artifact transfer process", "tags": ["docs", "root-ca"], "complexity": "moderate"},
+    {"id": "file:root-ca/artifacts/README.md", "type": "document", "name": "README.md (artifacts)", "filePath": "root-ca/artifacts/README.md", "summary": "Artifacts directory documentation — what files to transfer to issuing CA and what must never leave the root CA", "tags": ["docs", "root-ca", "artifacts"], "complexity": "simple"},
+    {"id": "file:root-ca/.ansible-lint", "type": "config", "name": ".ansible-lint (root-ca)", "filePath": "root-ca/.ansible-lint", "summary": "Ansible lint configuration", "tags": ["config", "root-ca"], "complexity": "simple"},
+    {"id": "file:root-ca/.yamllint", "type": "config", "name": ".yamllint (root-ca)", "filePath": "root-ca/.yamllint", "summary": "YAML lint configuration", "tags": ["config", "root-ca"], "complexity": "simple"},
+
+    {"id": "file:root-ca/roles/root_ca/tasks/main.yml", "type": "file", "name": "root_ca role tasks", "filePath": "root-ca/roles/root_ca/tasks/main.yml", "summary": "Root CA creation — validates target host, verifies vault passphrases, creates directory structure (0700 protected), initializes CA database, generates encrypted 4096-bit RSA private key, self-signs Root CA certificate", "tags": ["role", "root-ca", "pki", "core"], "complexity": "complex"},
+    {"id": "file:root-ca/roles/root_ca/templates/openssl-root.cnf.j2", "type": "config", "name": "openssl-root.cnf.j2", "filePath": "root-ca/roles/root_ca/templates/openssl-root.cnf.j2", "summary": "OpenSSL CA configuration template for the Root CA — defines root CA policies, v3_root_ca extensions, and database paths", "tags": ["template", "pki", "openssl", "root-ca"], "complexity": "moderate"},
+
+    {"id": "file:root-ca/roles/intermediate_ca/tasks/main.yml", "type": "file", "name": "intermediate_ca role tasks", "filePath": "root-ca/roles/intermediate_ca/tasks/main.yml", "summary": "Intermediate/Issuing CA provisioning — generates encrypted issuing CA private key on the root CA host, creates CSR, signs it with the Root CA using v3_intermediate_ca extensions, builds CA chain file", "tags": ["role", "root-ca", "pki", "core"], "complexity": "complex"},
+
+    {"id": "file:root-ca/roles/export_artifacts/tasks/main.yml", "type": "file", "name": "export_artifacts role tasks", "filePath": "root-ca/roles/export_artifacts/tasks/main.yml", "summary": "Public artifact export — stages root cert, issuing cert, and chain file on remote host, writes MANIFEST.txt, fetches all artifacts back to control node at root-ca/artifacts/", "tags": ["role", "root-ca", "artifacts"], "complexity": "moderate"}
+  ],
+
+  "edges": [
+    {"source": "file:issuing-ca/playbooks/site.yml", "target": "file:issuing-ca/roles/user_setup/tasks/main.yml", "type": "contains", "direction": "forward", "weight": 1.0},
+    {"source": "file:issuing-ca/playbooks/site.yml", "target": "file:issuing-ca/roles/ssh_setup/tasks/main.yml", "type": "contains", "direction": "forward", "weight": 1.0},
+    {"source": "file:issuing-ca/playbooks/site.yml", "target": "file:issuing-ca/roles/ufw/tasks/main.yml", "type": "contains", "direction": "forward", "weight": 1.0},
+    {"source": "file:issuing-ca/playbooks/site.yml", "target": "file:issuing-ca/roles/fail2ban/tasks/main.yml", "type": "contains", "direction": "forward", "weight": 1.0},
+    {"source": "file:issuing-ca/playbooks/site.yml", "target": "file:issuing-ca/roles/issuing_ca/tasks/main.yml", "type": "contains", "direction": "forward", "weight": 1.0},
+    {"source": "file:issuing-ca/playbooks/site.yml", "target": "file:issuing-ca/roles/certificate_issuance/tasks/main.yml", "type": "contains", "direction": "forward", "weight": 1.0},
+    {"source": "file:issuing-ca/playbooks/site.yml", "target": "file:issuing-ca/roles/crl_management/tasks/main.yml", "type": "contains", "direction": "forward", "weight": 1.0},
+    {"source": "file:issuing-ca/playbooks/site.yml", "target": "file:issuing-ca/roles/ocsp/tasks/main.yml", "type": "contains", "direction": "forward", "weight": 0.5},
+
+    {"source": "file:root-ca/playbooks/site.yml", "target": "file:root-ca/roles/root_ca/tasks/main.yml", "type": "contains", "direction": "forward", "weight": 1.0},
+    {"source": "file:root-ca/playbooks/site.yml", "target": "file:root-ca/roles/intermediate_ca/tasks/main.yml", "type": "contains", "direction": "forward", "weight": 1.0},
+    {"source": "file:root-ca/playbooks/site.yml", "target": "file:root-ca/roles/export_artifacts/tasks/main.yml", "type": "contains", "direction": "forward", "weight": 1.0},
+
+    {"source": "file:issuing-ca/roles/issuing_ca/tasks/main.yml", "target": "file:issuing-ca/roles/issuing_ca/templates/openssl.cnf.j2", "type": "configures", "direction": "forward", "weight": 0.8},
+    {"source": "file:issuing-ca/roles/issuing_ca/tasks/main.yml", "target": "file:issuing-ca/roles/issuing_ca/handlers/main.yml", "type": "triggers", "direction": "forward", "weight": 0.6},
+    {"source": "file:issuing-ca/roles/certificate_issuance/tasks/main.yml", "target": "file:issuing-ca/roles/certificate_issuance/templates/server-cert-profile.cnf.j2", "type": "configures", "direction": "forward", "weight": 0.8},
+    {"source": "file:issuing-ca/roles/certificate_issuance/tasks/main.yml", "target": "file:issuing-ca/roles/certificate_issuance/templates/client-cert-profile.cnf.j2", "type": "configures", "direction": "forward", "weight": 0.8},
+    {"source": "file:issuing-ca/roles/certificate_issuance/tasks/main.yml", "target": "file:issuing-ca/roles/certificate_issuance/templates/infra-cert-profile.cnf.j2", "type": "configures", "direction": "forward", "weight": 0.8},
+    {"source": "file:issuing-ca/roles/certificate_issuance/tasks/main.yml", "target": "file:issuing-ca/roles/certificate_issuance/templates/vpn-cert-profile.cnf.j2", "type": "configures", "direction": "forward", "weight": 0.8},
+    {"source": "file:issuing-ca/roles/crl_management/tasks/main.yml", "target": "file:issuing-ca/roles/crl_management/templates/generate-crl.sh.j2", "type": "configures", "direction": "forward", "weight": 0.8},
+    {"source": "file:issuing-ca/roles/ocsp/tasks/main.yml", "target": "file:issuing-ca/roles/ocsp/templates/ocsp-responder.service.j2", "type": "configures", "direction": "forward", "weight": 0.8},
+    {"source": "file:issuing-ca/roles/ocsp/tasks/main.yml", "target": "file:issuing-ca/roles/ocsp/templates/nginx-ocsp.conf.j2", "type": "configures", "direction": "forward", "weight": 0.8},
+    {"source": "file:issuing-ca/roles/ocsp/tasks/main.yml", "target": "file:issuing-ca/roles/ocsp/handlers/main.yml", "type": "triggers", "direction": "forward", "weight": 0.6},
+    {"source": "file:issuing-ca/roles/ufw/tasks/main.yml", "target": "file:issuing-ca/roles/ufw/handlers/main.yml", "type": "triggers", "direction": "forward", "weight": 0.6},
+    {"source": "file:issuing-ca/roles/fail2ban/tasks/main.yml", "target": "file:issuing-ca/roles/fail2ban/templates/jail.local.j2", "type": "configures", "direction": "forward", "weight": 0.8},
+    {"source": "file:issuing-ca/roles/fail2ban/tasks/main.yml", "target": "file:issuing-ca/roles/fail2ban/handlers/main.yml", "type": "triggers", "direction": "forward", "weight": 0.6},
+    {"source": "file:root-ca/roles/root_ca/tasks/main.yml", "target": "file:root-ca/roles/root_ca/templates/openssl-root.cnf.j2", "type": "configures", "direction": "forward", "weight": 0.8},
+
+    {"source": "file:issuing-ca/roles/crl_management/tasks/main.yml", "target": "file:issuing-ca/roles/issuing_ca/tasks/main.yml", "type": "depends_on", "direction": "forward", "weight": 0.9},
+    {"source": "file:issuing-ca/roles/ocsp/tasks/main.yml", "target": "file:issuing-ca/roles/issuing_ca/tasks/main.yml", "type": "depends_on", "direction": "forward", "weight": 0.7},
+    {"source": "file:issuing-ca/roles/certificate_issuance/tasks/main.yml", "target": "file:issuing-ca/roles/issuing_ca/tasks/main.yml", "type": "depends_on", "direction": "forward", "weight": 0.9},
+    {"source": "file:issuing-ca/roles/issuing_ca/tasks/main.yml", "target": "file:root-ca/roles/intermediate_ca/tasks/main.yml", "type": "depends_on", "direction": "forward", "weight": 0.8},
+    {"source": "file:issuing-ca/roles/issuing_ca/tasks/main.yml", "target": "file:root-ca/roles/root_ca/tasks/main.yml", "type": "depends_on", "direction": "forward", "weight": 0.8},
+    {"source": "file:root-ca/roles/intermediate_ca/tasks/main.yml", "target": "file:root-ca/roles/root_ca/tasks/main.yml", "type": "depends_on", "direction": "forward", "weight": 1.0},
+    {"source": "file:root-ca/roles/export_artifacts/tasks/main.yml", "target": "file:root-ca/roles/intermediate_ca/tasks/main.yml", "type": "depends_on", "direction": "forward", "weight": 1.0},
+
+    {"source": "file:README.md", "target": "file:issuing-ca/playbooks/site.yml", "type": "documents", "direction": "forward", "weight": 0.5},
+    {"source": "file:README.md", "target": "file:root-ca/playbooks/site.yml", "type": "documents", "direction": "forward", "weight": 0.5}
+  ],
+
+  "layers": [
+    {
+      "id": "layer:root",
+      "name": "Root",
+      "description": "Top-level project documentation",
+      "nodeIds": ["file:README.md"]
+    },
+    {
+      "id": "layer:root-ca",
+      "name": "Root CA",
+      "description": "Offline Root CA Ansible project — creates Root CA, signs Intermediate CA, exports artifacts",
+      "nodeIds": [
+        "file:root-ca/playbooks/site.yml",
+        "file:root-ca/inventory/hosts.yml",
+        "file:root-ca/inventory/group_vars/all/main.yml",
+        "file:root-ca/inventory/group_vars/all/vault.example.yml",
+        "file:root-ca/inventory/group_vars/all/vault.yml",
+        "file:root-ca/ansible.cfg",
+        "file:root-ca/requirements.yml",
+        "file:root-ca/README.md",
+        "file:root-ca/artifacts/README.md",
+        "file:root-ca/.ansible-lint",
+        "file:root-ca/.yamllint",
+        "file:root-ca/roles/root_ca/tasks/main.yml",
+        "file:root-ca/roles/root_ca/templates/openssl-root.cnf.j2",
+        "file:root-ca/roles/intermediate_ca/tasks/main.yml",
+        "file:root-ca/roles/export_artifacts/tasks/main.yml"
+      ]
+    },
+    {
+      "id": "layer:issuing-ca",
+      "name": "Issuing CA",
+      "description": "Online Issuing CA Ansible project — deploys and operates the intermediate CA server",
+      "nodeIds": [
+        "file:issuing-ca/playbooks/site.yml",
+        "file:issuing-ca/inventory/hosts.yml",
+        "file:issuing-ca/inventory/group_vars/all/main.yml",
+        "file:issuing-ca/inventory/group_vars/all/vault.example.yml",
+        "file:issuing-ca/ansible.cfg",
+        "file:issuing-ca/requirements.yml",
+        "file:issuing-ca/README.md",
+        "file:issuing-ca/.ansible-lint",
+        "file:issuing-ca/.yamllint"
+      ]
+    },
+    {
+      "id": "layer:pki-roles",
+      "name": "PKI Roles",
+      "description": "Certificate Authority roles — core PKI operations (CA setup, certificate issuance, CRL, OCSP)",
+      "nodeIds": [
+        "file:issuing-ca/roles/issuing_ca/tasks/main.yml",
+        "file:issuing-ca/roles/issuing_ca/handlers/main.yml",
+        "file:issuing-ca/roles/issuing_ca/templates/openssl.cnf.j2",
+        "file:issuing-ca/roles/certificate_issuance/tasks/main.yml",
+        "file:issuing-ca/roles/certificate_issuance/templates/server-cert-profile.cnf.j2",
+        "file:issuing-ca/roles/certificate_issuance/templates/client-cert-profile.cnf.j2",
+        "file:issuing-ca/roles/certificate_issuance/templates/infra-cert-profile.cnf.j2",
+        "file:issuing-ca/roles/certificate_issuance/templates/vpn-cert-profile.cnf.j2",
+        "file:issuing-ca/roles/crl_management/tasks/main.yml",
+        "file:issuing-ca/roles/crl_management/templates/generate-crl.sh.j2",
+        "file:issuing-ca/roles/ocsp/tasks/main.yml",
+        "file:issuing-ca/roles/ocsp/handlers/main.yml",
+        "file:issuing-ca/roles/ocsp/templates/ocsp-responder.service.j2",
+        "file:issuing-ca/roles/ocsp/templates/nginx-ocsp.conf.j2"
+      ]
+    },
+    {
+      "id": "layer:system-roles",
+      "name": "System Hardening",
+      "description": "Server hardening roles — user setup, SSH, firewall, fail2ban",
+      "nodeIds": [
+        "file:issuing-ca/roles/user_setup/tasks/main.yml",
+        "file:issuing-ca/roles/ssh_setup/tasks/main.yml",
+        "file:issuing-ca/roles/ufw/tasks/main.yml",
+        "file:issuing-ca/roles/ufw/handlers/main.yml",
+        "file:issuing-ca/roles/fail2ban/tasks/main.yml",
+        "file:issuing-ca/roles/fail2ban/handlers/main.yml",
+        "file:issuing-ca/roles/fail2ban/templates/jail.local.j2"
+      ]
+    }
+  ],
+
+  "tour": [
+    {"order": 1, "title": "Project Overview", "description": "This README explains the two-tier CA hierarchy: an offline Root CA that signs an Intermediate CA, and an online Issuing CA that issues end-entity certificates.", "nodeIds": ["file:README.md"]},
+    {"order": 2, "title": "Root CA Playbook", "description": "The Root CA playbook creates the Root CA, generates the Intermediate CA key and CSR, signs it, and exports public artifacts.", "nodeIds": ["file:root-ca/playbooks/site.yml"]},
+    {"order": 3, "title": "Root CA Role", "description": "The root_ca role generates the encrypted Root CA private key and self-signed certificate on the offline host.", "nodeIds": ["file:root-ca/roles/root_ca/tasks/main.yml"]},
+    {"order": 4, "title": "Intermediate CA Role", "description": "The intermediate_ca role generates the Issuing CA key, creates a CSR, and signs it with the Root CA — all on the offline host.", "nodeIds": ["file:root-ca/roles/intermediate_ca/tasks/main.yml"]},
+    {"order": 5, "title": "Export Artifacts", "description": "The export_artifacts role stages the public certificates (root, issuing, chain) and fetches them to root-ca/artifacts/ on the control node.", "nodeIds": ["file:root-ca/roles/export_artifacts/tasks/main.yml"]},
+    {"order": 6, "title": "Issuing CA Playbook", "description": "The Issuing CA playbook imports those artifacts and deploys the online CA server with full system hardening.", "nodeIds": ["file:issuing-ca/playbooks/site.yml"]},
+    {"order": 7, "title": "Issuing CA Role", "description": "The issuing_ca role is the core — it imports the CA artifacts, sets up the OpenSSL CA database, and validates the trust chain.", "nodeIds": ["file:issuing-ca/roles/issuing_ca/tasks/main.yml"]},
+    {"order": 8, "title": "Certificate Profiles", "description": "Certificate issuance is manual/privileged. The role deploys 4 certificate profile templates (server, client, infra, VPN) with appropriate OpenSSL extensions.", "nodeIds": ["file:issuing-ca/roles/certificate_issuance/tasks/main.yml"]},
+    {"order": 9, "title": "CRL Management", "description": "CRLs are generated via a deployed script and published to /var/www/html/crl/. A daily cron job auto-renews the CRL.", "nodeIds": ["file:issuing-ca/roles/crl_management/tasks/main.yml"]},
+    {"order": 10, "title": "OCSP Responder", "description": "OCSP provides real-time revocation status as an alternative to CRLs. Optional — disabled by default. Runs as a dedicated non-root user.", "nodeIds": ["file:issuing-ca/roles/ocsp/tasks/main.yml"]},
+    {"order": 11, "title": "System Hardening", "description": "The server is hardened with UFW firewall (deny all inbound, allow SSH/HTTPS/HTTP), Fail2Ban SSH protection, and locked-down SSH key access.", "nodeIds": ["file:issuing-ca/roles/ufw/tasks/main.yml", "file:issuing-ca/roles/fail2ban/tasks/main.yml"]}
+  ]
+}

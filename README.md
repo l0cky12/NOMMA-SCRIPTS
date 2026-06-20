@@ -1,14 +1,52 @@
-# NOMMA PKI Infrastructure
+# NOMMA Automation
 
 **Organization:** NOMMA — New Orleans Military & Maritime Academy
 **Location:** New Orleans, Louisiana, USA
-**Repository:** `nomma-pki`
+**Repository:** `nomma-automation`
 
 ---
 
 ## Overview
 
-This repository contains the complete Public Key Infrastructure (PKI) for NOMMA. It uses a two-tier CA hierarchy:
+This repository contains automation and infrastructure-as-code for NOMMA IT operations, including:
+
+- **PKI Infrastructure** — Two-tier Certificate Authority (Root CA + Issuing CA) deployed via Ansible
+- **PowerShell Automation** — PC rename scripts for Autopilot enrollment and other Windows automation tasks
+
+---
+
+## Directory Structure
+
+```
+nomma-automation/
+├── README.md                    ← This file
+├── .gitignore
+│
+├── ansible/                     ← Infrastructure automation
+│   ├── root-ca/                 ← Offline Root CA Ansible project
+│   │   ├── ansible.cfg
+│   │   ├── inventory/
+│   │   ├── playbooks/
+│   │   ├── roles/
+│   │   └── artifacts/           ← Root CA certs (exported TO issuing-ca)
+│   │
+│   └── issuing-ca/              ← Online Issuing CA Ansible project
+│       ├── ansible.cfg
+│       ├── inventory/
+│       ├── playbooks/
+│       ├── roles/
+│       └── README.md
+│
+└── powershell/                  ← Windows automation scripts
+    ├── rename-pc.ps1            — Auto-rename PCs during Autopilot enrollment
+    └── README.md                — Script documentation
+```
+
+---
+
+## PKI Infrastructure
+
+### CA Hierarchy
 
 ```
 ┌─────────────────────────────────────┐
@@ -30,145 +68,49 @@ This repository contains the complete Public Key Infrastructure (PKI) for NOMMA.
 └─────────────────────────────────────┘
 ```
 
----
+### Security Model
 
-## Directory Structure
-
-```
-nomma-pki/
-├── README.md                    ← This file
-├── .gitignore
-│
-├── root-ca/                     ← Offline Root CA Ansible project
-│   ├── ansible.cfg
-│   ├── inventory/
-│   ├── inventory/group_vars/
-│   ├── playbooks/
-│   ├── roles/
-│   ├── templates/
-│   └── artifacts/               ← Root CA certs (exported TO issuing-ca)
-│       ├── .gitkeep
-│       ├── nomma-root-ca.cert.pem
-│       ├── nomma-issuing-ca.cert.pem
-│       └── nomma-ca-chain.cert.pem
-│
-├── issuing-ca/                  ← Online Issuing CA Ansible project
-│   ├── ansible.cfg
-│   ├── inventory/
-│   ├── inventory/group_vars/
-│   ├── playbooks/
-│   ├── roles/
-│   ├── templates/
-│   └── README.md
-│
-└── .gitignore
-```
+- **Root CA private key** — Never touches the network, air-gapped system
+- **Issuing CA private key** — Online, protected with `0400` permissions
+- **Secrets** — Encrypted with Ansible Vault
+- **SSH** — Key-only auth, hardened with Fail2Ban
+- **Firewall** — UFW denies all inbound except SSH, HTTP, HTTPS
 
 ---
 
-## CA Hierarchy Security Model
+## PowerShell Scripts
 
-### Offline Root CA (`root-ca/`)
+### rename-pc.ps1
 
-- **Purpose:** Establish the chain of trust. Signs exactly one Intermediate CA certificate.
-- **Security:** The Root CA private key **never** touches a network. The Root CA system is air-gapped.
-- **Operations:** Only powered on for:
-  - Initial Intermediate CA signing
-  - Intermediate CA certificate renewal (every 10 years)
-  - Root CA CRL generation (if Intermediate CA is compromised)
-  - Root CA key ceremony / backup
+Renames computers during Autopilot enrollment based on serial number and asset tag from a CSV file.
 
-### Online Issuing CA (`issuing-ca/`)
+**Naming convention:** `L5-SERIAL(7)-ASSETTAG(4)`
 
-- **Purpose:** Day-to-day certificate issuance, renewal, and revocation.
-- **Security:** Online 24/7. Private key is on disk but protected with restrictive permissions (`0400`).
-- **Operations:** Issues all server, client, device, and service certificates for `nomma.tech` and `nomma.lan`.
+**Example:** Serial `ABC1234567890` + AssetTag `1001` → `L5-567890-1001`
 
----
-
-## File Transfer Matrix
-
-### Files that MUST be transferred FROM Root CA TO Issuing CA
-
-| File | Source | Destination | Purpose |
-|------|--------|-------------|---------|
-| `nomma-root-ca.cert.pem` | `root-ca/artifacts/` | `issuing-ca/` (via playbook) | Root CA certificate — needed to build trust chain |
-| `nomma-issuing-ca.cert.pem` | `root-ca/artifacts/` | `issuing-ca/` (via playbook) | Signed Intermediate CA certificate |
-| `nomma-ca-chain.cert.pem` | `root-ca/artifacts/` | `issuing-ca/` (via playbook) | Full chain: Intermediate + Root |
-
-### Files that MUST NEVER leave the Root CA
-
-| File | Reason |
-|------|--------|
-| `nomma-root-ca.key.pem` | Root CA private key — compromise destroys the entire PKI |
-| Any Root CA private key backup | Same as above |
-| Root CA password/passphrase | Protects the private key |
-
-### Files that CAN be distributed freely
-
-| File | Reason |
-|------|--------|
-| `nomma-root-ca.cert.pem` | Public certificate — needed for trust chain |
-| `nomma-ca-chain.cert.pem` | Public certificate chain |
-| `nomma-issuing-ca.cert.pem` | Public Intermediate CA certificate |
-| CRL files | Public — needed for revocation checking |
+See [`powershell/README.md`](powershell/README.md) for full documentation.
 
 ---
 
 ## Initial Setup Workflow
 
-### Step 1: Deploy the Offline Root CA
+### PKI Deployment
 
-Run the `root-ca/` Ansible project on an air-gapped Debian system to create the Root CA.
-
-### Step 2: Sign the Intermediate CA Certificate
-
-On the offline Root CA system:
-1. Generate the Intermediate CA key and CSR
-2. Sign the Intermediate CA certificate with the Root CA
-3. Build the certificate chain
-
-### Step 3: Export Artifacts
-
-Copy ONLY these files to `root-ca/artifacts/` in this repository:
-- `nomma-root-ca.cert.pem`
-- `nomma-issuing-ca.cert.pem`
-- `nomma-ca-chain.cert.pem`
-
-**DO NOT copy the Root CA private key.**
-
-### Step 4: Deploy the Issuing CA
+1. **Deploy the Offline Root CA** — Run the `ansible/root-ca/` project on an air-gapped Debian system
+2. **Sign the Intermediate CA** — On the offline Root CA, generate and sign the Intermediate CA cert
+3. **Export Artifacts** — Copy only public certs to `ansible/root-ca/artifacts/`
+4. **Deploy the Issuing CA** — Run the `ansible/issuing-ca/` project on the target server
 
 ```bash
-cd issuing-ca/
-
-# Create vault password (one-time)
-echo "your-strong-password" > ~/.ansible/vault-password.txt
-chmod 600 ~/.ansible/vault-password.txt
-
-# Create encrypted vault
-cp inventory/group_vars/all/vault.example.yml inventory/group_vars/all/vault.yml
-# Edit to set the real password hash
-ansible-vault encrypt inventory/group_vars/all/vault.yml \
-  --vault-id default@~/.ansible/vault-password.txt
-
-# Run the playbook
-ansible-playbook playbooks/site.yml \
-  --vault-id default@~/.ansible/vault-password.txt
+cd ansible/issuing-ca/
+ansible-playbook playbooks/site.yml --vault-id default@~/.ansible/vault-password.txt
 ```
 
----
+### PC Rename Deployment
 
-## Intermediate CA Certificate Renewal
-
-When the Intermediate CA certificate approaches expiry (every 10 years):
-
-1. Power on the offline Root CA
-2. Generate a new Intermediate CA key/CSR
-3. Sign with the Root CA
-4. Export new certs to `root-ca/artifacts/`
-5. Re-run the `issuing-ca/` playbook to import the new certs
-6. Distribute the new chain to all relying parties
+1. Prepare CSV with `SerialNumber,AssetTag` columns
+2. Deploy `powershell/rename-pc.ps1` as an Intune Win32 app
+3. Target Autopilot device group
 
 ---
 
@@ -176,27 +118,6 @@ When the Intermediate CA certificate approaches expiry (every 10 years):
 
 - `nomma.tech` — Public-facing services
 - `nomma.lan` — Internal infrastructure
-
-Example service certificates:
-- `server.nomma.tech` / `server.nomma.lan`
-- `pki.nomma.tech` / `pki.nomma.lan`
-- `vpn.nomma.tech`
-- `mail.nomma.tech`
-- `ldap.nomma.lan`
-- `radius.nomma.lan`
-
----
-
-## Security Notes
-
-- All private keys are stored with `0400` or `0600` permissions
-- The Intermediate CA private key directory is mode `0700`
-- SSH is hardened with key-only auth and Fail2Ban
-- UFW denies all inbound except SSH, HTTP, HTTPS
-- Secrets are encrypted with Ansible Vault
-- `no_log: true` is used on all tasks that handle passwords
-
----
 
 ## Disaster Recovery
 
