@@ -34,13 +34,14 @@
 # Build the MACs exclusion line and apply it
 # ──────────────────────────────────────────────────────────
 
-# Ansible's lineinfile needs a single string for the line value.
-# We join the weak MACs list with commas, prefixing each with '-'.
+# OpenSSH MACs removal syntax: single '-' prefix, then comma-separated list.
+# Example: MACs -hmac-md5,hmac-md5-96,hmac-ripemd160,...
+# Do NOT prefix each MAC with '-' — OpenSSH ignores invalid names silently.
 - name: Set MACs exclusion line in sshd_config
   ansible.builtin.lineinfile:
     path: "{{ ssh_macs_sshd_config }}"
     regexp: '^\s*#?\s*MACs\s+.*$'
-    line: "MACs -{{ ssh_weak_macs | join(',-') }}"
+    line: "MACs -{{ ssh_weak_macs | join(',') }}"
     insertbefore: '^\s*(Include|Match)\s'
     state: present
     backup: yes
