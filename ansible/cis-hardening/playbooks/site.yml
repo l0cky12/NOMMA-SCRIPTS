@@ -39,7 +39,7 @@
 #   8. cron_dir_perms  — cron dir permissions (root:root 0700)
 
 - name: NOMMA CIS hardening
-  hosts: linux_servers
+  hosts: nomma_linux
   become: true
 
   roles:
