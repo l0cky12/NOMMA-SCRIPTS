@@ -22,12 +22,82 @@ root_account_passwd_file: /etc/passwd
 
 # Wordlist for passphrase generation (Word-Word-Word-Number format)
 root_account_wordlist:
-  - Anchor, Breeze, Cobalt, Drift, Ember, Falcon, Grove, Haven
-  - Igloo, Jasper, Karma, Lunar, Mango, Noble, Orbit, Plume
-  - Quartz, Ridge, Summit, Tidal, Valor, Willow, Xenon, Yield
-  - Zephyr, Blaze, Coral, Dune, Echo, Frost, Glyph, Haste
-  - Ionic, Jolt, Kneel, Latch, Mirth, Nexus, Onyx, Pulse, Quilt
-  - Rift, Spore, Thorn, Umber, Vivid, Wren, Yodel, Zest, Arc
-  - Bolt, Crest, Dawn, Fang, Glow, Husk, Iris, Jade, Knot, Loom
-  - Mist, Nail, Oath, Pike, Quill, Raven, Sage, Tide, Vine, Wisp
-  - Zion, Bring, Snarl, Gopher, Crane, Flint, Hollow, Ivory, Kettle
+  - Anchor
+  - Breeze
+  - Cobalt
+  - Drift
+  - Ember
+  - Falcon
+  - Grove
+  - Haven
+  - Igloo
+  - Jasper
+  - Karma
+  - Lunar
+  - Mango
+  - Noble
+  - Orbit
+  - Plume
+  - Quartz
+  - Ridge
+  - Summit
+  - Tidal
+  - Valor
+  - Willow
+  - Xenon
+  - Yield
+  - Zephyr
+  - Blaze
+  - Coral
+  - Dune
+  - Echo
+  - Frost
+  - Glyph
+  - Haste
+  - Ionic
+  - Jolt
+  - Kneel
+  - Latch
+  - Mirth
+  - Nexus
+  - Onyx
+  - Pulse
+  - Quilt
+  - Rift
+  - Spore
+  - Thorn
+  - Umber
+  - Vivid
+  - Wren
+  - Yodel
+  - Zest
+  - Arc
+  - Bolt
+  - Crest
+  - Dawn
+  - Fang
+  - Glow
+  - Husk
+  - Iris
+  - Jade
+  - Knot
+  - Loom
+  - Mist
+  - Nail
+  - Oath
+  - Pike
+  - Quill
+  - Raven
+  - Sage
+  - Tide
+  - Vine
+  - Wisp
+  - Zion
+  - Bring
+  - Snarl
+  - Gopher
+  - Crane
+  - Flint
+  - Hollow
+  - Ivory
+  - Kettle
