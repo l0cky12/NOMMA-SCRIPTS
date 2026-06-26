@@ -1,0 +1,7 @@
+---
+# roles/ssh_disable_forwarding/handlers/main.yml
+
+- name: Reload sshd
+  ansible.builtin.systemd:
+    name: ssh
+    state: reloaded

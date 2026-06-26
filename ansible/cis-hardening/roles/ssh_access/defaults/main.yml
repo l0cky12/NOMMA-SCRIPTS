@@ -1,0 +1,23 @@
+---
+# roles/ssh_access/defaults/main.yml
+#
+# CIS 5.2.8 - Ensure SSH access is limited
+# Restricts SSH remote login to a specific list of users.
+# Only AllowUsers is set (not AllowGroups) per CIS recommendation
+# to use a single allow list for clarity and ease of administration.
+
+# List of users allowed to SSH into the system.
+# Add or remove users here; the role will update sshd_config.
+ssh_allow_users:
+  - liam
+  - ldecareaux
+  - dcooper
+
+# Path to the main sshd configuration file.
+ssh_access_sshd_config: /etc/ssh/sshd_config
+
+# Whether to also set AllowGroups. Disabled by default per CIS
+# recommendation to use only one allow mechanism. If enabled,
+# both AllowUsers and AllowGroups are ANDed together by sshd.
+ssh_allow_groups_enabled: false
+ssh_allow_groups: []

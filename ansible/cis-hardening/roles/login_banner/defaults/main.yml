@@ -1,0 +1,51 @@
+---
+# roles/login_banner/defaults/main.yml
+#
+# Defaults for CIS 1.6.2 (/etc/issue) and 1.6.3 (/etc/issue.net)
+# Pre-login warning banners shown on local console and remote SSH.
+
+# Whether to deploy the banner files (true) or remove them (false).
+# CIS allows either approach -- deploying is more common for orgs
+# that need to assert legal status before authentication.
+login_banner_deploy: true
+
+# ── File paths ───────────────────────────────────────────────
+login_banner_local_file: /etc/issue       # Local console (TTY)
+login_banner_remote_file: /etc/issue.net  # Remote (SSH, telnet)
+
+# ── Banner content ───────────────────────────────────────────
+# This is shown BEFORE login. Keep it concise but complete.
+# Must include:
+#   - Organization name that owns the system
+#   - Monitoring policies in place
+# Must NOT contain:
+#   - \m, \r, \s, \v (getty escape sequences that leak OS info)
+#   - References to the OS platform (Debian, Ubuntu, etc.)
+#
+# Note: /etc/issue supports getty escape sequences.  Debian's
+# default /etc/issue contains \m, \r, \s, \v which leak machine
+# arch, OS release, OS name, and OS version.  We replace the
+# entire file so none of those survive.
+login_banner_content: |
+  *****************************************************************************
+  *                                                                           *
+  *  NOTICE TO USERS                                                          *
+  *                                                                           *
+  *  This computer system is the property of NOMMA - New Orleans Military &   *
+  *  Maritime Academy.  It is for authorized use only.                        *
+  *                                                                           *
+  *  Users have no explicit or implicit expectation of privacy.  All use      *
+  *  of this system may be monitored and recorded.                           *
+  *                                                                           *
+  *  Unauthorized use may result in disciplinary action and civil/criminal   *
+  *  penalties.  Disconnect immediately if you do not consent to these       *
+  *  terms.                                                                   *
+  *                                                                           *
+  *****************************************************************************
+
+# ── SSH banner configuration ─────────────────────────────────
+# /etc/issue.net is only shown on SSH login when the sshd Banner
+# directive points to it.  This role ensures that setting.
+login_banner_configure_ssh: true
+login_banner_sshd_config_file: /etc/ssh/sshd_config
+login_banner_sshd_banner_line: "Banner {{ login_banner_remote_file }}"

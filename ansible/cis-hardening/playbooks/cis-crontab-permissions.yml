@@ -1,0 +1,19 @@
+---
+# playbooks/cis-crontab-permissions.yml
+#
+# CIS - Ensure permissions on /etc/crontab are configured
+#
+# Sets root:root ownership and mode 0600 on /etc/crontab.
+#
+# Usage:
+#   ansible-playbook -i inventory.ini playbooks/cis-crontab-permissions.yml
+#
+# Check mode:
+#   ansible-playbook -i inventory.ini playbooks/cis-crontab-permissions.yml --check
+
+- name: CIS - Permissions on /etc/crontab
+  hosts: linux_servers
+  become: true
+
+  roles:
+    - crontab_permissions

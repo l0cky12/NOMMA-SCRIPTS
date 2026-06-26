@@ -1,0 +1,240 @@
+---
+# roles/login_banner/tasks/main.yml
+#
+# CIS 1.6.2 - Ensure local login warning banner is configured properly (/etc/issue)
+# CIS 1.6.3 - Ensure remote login warning banner is configured properly (/etc/issue.net)
+#
+# Deploys sanitized pre-login warning banners to /etc/issue (local
+# console) and /etc/issue.net (remote SSH), or removes both files.
+# Also configures sshd to display /etc/issue.net on SSH login.
+#
+# Idempotent: uses ansible.builtin.copy (content-based) and
+# ansible.builtin.lineinfile (regex match).  Safe to rerun.
+
+# ──────────────────────────────────────────────────────────
+# Branch A: Deploy banners
+# ──────────────────────────────────────────────────────────
+
+- name: Deploy local console banner (/etc/issue)
+  ansible.builtin.copy:
+    dest: "{{ login_banner_local_file }}"
+    content: "{{ login_banner_content }}"
+    owner: root
+    group: root
+    mode: "0644"
+    backup: yes
+  when: login_banner_deploy | bool
+  notify: Login banner changed
+
+- name: Deploy remote SSH banner (/etc/issue.net)
+  ansible.builtin.copy:
+    dest: "{{ login_banner_remote_file }}"
+    content: "{{ login_banner_content }}"
+    owner: root
+    group: root
+    mode: "0644"
+    backup: yes
+  when: login_banner_deploy | bool
+  notify: Login banner changed
+
+# ──────────────────────────────────────────────────────────
+# Branch B: Remove banners
+# ──────────────────────────────────────────────────────────
+
+- name: Remove local console banner (/etc/issue)
+  ansible.builtin.file:
+    path: "{{ login_banner_local_file }}"
+    state: absent
+  when: not (login_banner_deploy | bool)
+
+- name: Remove remote SSH banner (/etc/issue.net)
+  ansible.builtin.file:
+    path: "{{ login_banner_remote_file }}"
+    state: absent
+  when: not (login_banner_deploy | bool)
+
+# ──────────────────────────────────────────────────────────
+# SSH: ensure Banner directive points to /etc/issue.net
+# ──────────────────────────────────────────────────────────
+
+- name: Check if sshd config exists
+  ansible.builtin.stat:
+    path: "{{ login_banner_sshd_config_file }}"
+  register: sshd_config_stat
+
+- name: Set sshd Banner directive to /etc/issue.net
+  ansible.builtin.lineinfile:
+    path: "{{ login_banner_sshd_config_file }}"
+    regexp: '^\s*#?\s*Banner\s+.*$'
+    line: "{{ login_banner_sshd_banner_line }}"
+    state: present
+    backup: yes
+    validate: 'sshd -t -f %s'
+  when:
+    - login_banner_deploy | bool
+    - login_banner_configure_ssh | bool
+    - sshd_config_stat.stat.exists
+  notify: Reload sshd
+
+- name: Remove sshd Banner directive (if banners removed)
+  ansible.builtin.lineinfile:
+    path: "{{ login_banner_sshd_config_file }}"
+    regexp: '^\s*#?\s*Banner\s+.*$'
+    state: absent
+    backup: yes
+    validate: 'sshd -t -f %s'
+  when:
+    - not (login_banner_deploy | bool)
+    - login_banner_configure_ssh | bool
+    - sshd_config_stat.stat.exists
+  notify: Reload sshd
+
+# ──────────────────────────────────────────────────────────
+# Flush handlers so sshd reloads before verification
+# ──────────────────────────────────────────────────────────
+
+- name: Flush handlers
+  ansible.builtin.meta: flush_handlers
+
+# ──────────────────────────────────────────────────────────
+# Verification: /etc/issue
+# ──────────────────────────────────────────────────────────
+
+- name: Check if /etc/issue exists
+  ansible.builtin.stat:
+    path: "{{ login_banner_local_file }}"
+  register: issue_stat
+
+- name: Verify /etc/issue state
+  ansible.builtin.assert:
+    that:
+      - issue_stat.stat.exists == (login_banner_deploy | bool)
+    fail_msg: "/etc/issue existence={{ issue_stat.stat.exists }}, expected={{ login_banner_deploy | bool }}"
+    success_msg: "/etc/issue state correct: {{ 'present' if login_banner_deploy | bool else 'absent' }}"
+
+- name: Read /etc/issue for verification
+  ansible.builtin.command: cat {{ login_banner_local_file }}
+  register: issue_content
+  changed_when: false
+  when: login_banner_deploy | bool
+
+- name: Verify /etc/issue contains organization name (NOMMA)
+  ansible.builtin.assert:
+    that:
+      - "'NOMMA' in issue_content.stdout"
+    fail_msg: "/etc/issue does not contain NOMMA."
+    success_msg: "/etc/issue contains NOMMA."
+  when: login_banner_deploy | bool
+
+- name: Verify /etc/issue does not leak OS platform information
+  ansible.builtin.assert:
+    that:
+      - "'\\m' not in issue_content.stdout"
+      - "'\\r' not in issue_content.stdout"
+      - "'\\s' not in issue_content.stdout"
+      - "'\\v' not in issue_content.stdout"
+      - "'Debian' not in issue_content.stdout"
+      - "'Ubuntu' not in issue_content.stdout"
+    fail_msg: "/etc/issue contains forbidden OS platform references."
+    success_msg: "/etc/issue is free of OS platform references."
+  when: login_banner_deploy | bool
+
+- name: Verify /etc/issue mentions monitoring
+  ansible.builtin.assert:
+    that:
+      - "'monitor' in issue_content.stdout | lower"
+    fail_msg: "/etc/issue does not mention monitoring."
+    success_msg: "/etc/issue mentions monitoring."
+  when: login_banner_deploy | bool
+
+- name: Verify /etc/issue file permissions
+  ansible.builtin.assert:
+    that:
+      - issue_stat.stat.mode == '0644'
+    fail_msg: "/etc/issue mode is {{ issue_stat.stat.mode }}, expected 0644."
+    success_msg: "/etc/issue mode is 0644."
+  when: login_banner_deploy | bool
+
+# ──────────────────────────────────────────────────────────
+# Verification: /etc/issue.net
+# ──────────────────────────────────────────────────────────
+
+- name: Check if /etc/issue.net exists
+  ansible.builtin.stat:
+    path: "{{ login_banner_remote_file }}"
+  register: issue_net_stat
+
+- name: Verify /etc/issue.net state
+  ansible.builtin.assert:
+    that:
+      - issue_net_stat.stat.exists == (login_banner_deploy | bool)
+    fail_msg: "/etc/issue.net existence={{ issue_net_stat.stat.exists }}, expected={{ login_banner_deploy | bool }}"
+    success_msg: "/etc/issue.net state correct: {{ 'present' if login_banner_deploy | bool else 'absent' }}"
+
+- name: Read /etc/issue.net for verification
+  ansible.builtin.command: cat {{ login_banner_remote_file }}
+  register: issue_net_content
+  changed_when: false
+  when: login_banner_deploy | bool
+
+- name: Verify /etc/issue.net contains organization name (NOMMA)
+  ansible.builtin.assert:
+    that:
+      - "'NOMMA' in issue_net_content.stdout"
+    fail_msg: "/etc/issue.net does not contain NOMMA."
+    success_msg: "/etc/issue.net contains NOMMA."
+  when: login_banner_deploy | bool
+
+- name: Verify /etc/issue.net does not leak OS platform information
+  ansible.builtin.assert:
+    that:
+      - "'\\m' not in issue_net_content.stdout"
+      - "'\\r' not in issue_net_content.stdout"
+      - "'\\s' not in issue_net_content.stdout"
+      - "'\\v' not in issue_net_content.stdout"
+      - "'Debian' not in issue_net_content.stdout"
+      - "'Ubuntu' not in issue_net_content.stdout"
+    fail_msg: "/etc/issue.net contains forbidden OS platform references."
+    success_msg: "/etc/issue.net is free of OS platform references."
+  when: login_banner_deploy | bool
+
+- name: Verify /etc/issue.net mentions monitoring
+  ansible.builtin.assert:
+    that:
+      - "'monitor' in issue_net_content.stdout | lower"
+    fail_msg: "/etc/issue.net does not mention monitoring."
+    success_msg: "/etc/issue.net mentions monitoring."
+  when: login_banner_deploy | bool
+
+- name: Verify /etc/issue.net file permissions
+  ansible.builtin.assert:
+    that:
+      - issue_net_stat.stat.mode == '0644'
+    fail_msg: "/etc/issue.net mode is {{ issue_net_stat.stat.mode }}, expected 0644."
+    success_msg: "/etc/issue.net mode is 0644."
+  when: login_banner_deploy | bool
+
+# ──────────────────────────────────────────────────────────
+# Verification: sshd Banner directive
+# ──────────────────────────────────────────────────────────
+
+- name: Read sshd config for banner verification
+  ansible.builtin.command: grep -i '^Banner' {{ login_banner_sshd_config_file }}
+  register: sshd_banner_check
+  changed_when: false
+  failed_when: false
+  when:
+    - login_banner_deploy | bool
+    - login_banner_configure_ssh | bool
+    - sshd_config_stat.stat.exists
+
+- name: Verify sshd Banner directive points to /etc/issue.net
+  ansible.builtin.assert:
+    that:
+      - "'/etc/issue.net' in sshd_banner_check.stdout"
+    fail_msg: "sshd Banner directive not set to /etc/issue.net. Run: grep Banner {{ login_banner_sshd_config_file }}"
+    success_msg: "sshd Banner directive points to /etc/issue.net."
+  when:
+    - login_banner_deploy | bool
+    - login_banner_configure_ssh | bool
+    - sshd_config_stat.stat.exists

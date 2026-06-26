@@ -1,0 +1,131 @@
+---
+# playbooks/remove-liam-reset-ldecareaux.yml
+#
+# Removes local user "liam" from Linux servers and resets
+# "ldecareaux" password to a random passphrase.
+#
+# Usage:
+#   ansible-playbook -i inventory.ini playbooks/remove-liam-reset-ldecareaux.yml
+#
+# The generated passphrase is shown in the play recap output.
+# Copy it from there -- it is NOT saved anywhere.
+
+- name: Remove user "liam" and reset "ldecareaux" password
+  hosts: linux_servers
+  become: yes
+
+  vars:
+    target_user: liam
+    reset_user: ldecareaux
+    wordlist:
+      - Anchor
+      - Breeze
+      - Cobalt
+      - Drift
+      - Ember
+      - Falcon
+      - Grove
+      - Haven
+      - Igloo
+      - Jasper
+      - Karma
+      - Lunar
+      - Mango
+      - Noble
+      - Orbit
+      - Plume
+      - Quartz
+      - Ridge
+      - Summit
+      - Tidal
+      - Valor
+      - Willow
+      - Xenon
+      - Yield
+      - Zephyr
+      - Blaze
+      - Coral
+      - Dune
+      - Echo
+      - Frost
+      - Glyph
+      - Haste
+      - Ionic
+      - Jolt
+      - Kneel
+      - Latch
+      - Mirth
+      - Nexus
+      - Onyx
+      - Pulse
+      - Quilt
+      - Rift
+      - Spore
+      - Thorn
+      - Umber
+      - Vivid
+      - Wren
+      - Yodel
+      - Zest
+      - Arc
+      - Bolt
+      - Crest
+      - Dawn
+      - Fang
+      - Glow
+      - Husk
+      - Iris
+      - Jade
+      - Knot
+      - Loom
+      - Mist
+      - Nail
+      - Oath
+      - Pike
+      - Quill
+      - Raven
+      - Sage
+      - Tide
+      - Vine
+      - Wisp
+      - Zion
+      - Bring
+      - Snarl
+      - Gopher
+      - Crane
+      - Flint
+      - Hollow
+      - Ivory
+      - Kettle
+
+  tasks:
+    - name: Generate random passphrase
+      ansible.builtin.set_fact:
+        new_passphrase: "{{ wordlist | random | title }}-{{ wordlist | random | title }}-{{ wordlist | random | title }}-{{ range(0, 10) | random }}"
+
+    - name: Ensure reset_user exists
+      ansible.builtin.user:
+        name: "{{ reset_user }}"
+        state: present
+
+    - name: Reset password
+      ansible.builtin.user:
+        name: "{{ reset_user }}"
+        password: "{{ new_passphrase | password_hash('sha512') }}"
+      no_log: true
+
+    - name: Remove target user
+      ansible.builtin.user:
+        name: "{{ target_user }}"
+        state: absent
+        remove: yes
+
+    - name: Display new passphrase
+      ansible.builtin.debug:
+        msg: |
+          ============================================
+          NEW PASSPHRASE for {{ reset_user }}: {{ new_passphrase }}
+          ============================================
+          Copy this now. It will not be shown again.
+      run_once: true
+      delegate_to: localhost

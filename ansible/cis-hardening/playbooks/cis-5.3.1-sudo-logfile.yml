@@ -1,0 +1,24 @@
+---
+# playbooks/cis-5.3.1-sudo-logfile.yml
+#
+# CIS 5.3.1 - Ensure sudo log file exists
+# Configures a dedicated sudo log file for auditing.
+#
+# Compliance Mapping:
+#   CIS:   5.3.1
+#   NIST:  AU-2, AU-12
+#   MITRE: T1078.003 (Local Accounts)
+#
+# Usage:
+#   ansible-playbook -i inventory/hosts.yml playbooks/cis-5.3.1-sudo-logfile.yml
+#
+# Or via site.yml with tags:
+#   ansible-playbook -i inventory/hosts.yml playbooks/site.yml --tags cis-5.3.1
+
+- name: CIS 5.3.1 - Ensure sudo log file exists
+  hosts: linux_servers
+  become: true
+
+  roles:
+    - role: sudo_logfile
+      tags: [cis, hardening, cis_sudo, cis-5.3.1, cis_5_3_1]

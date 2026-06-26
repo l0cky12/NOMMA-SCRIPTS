@@ -1,0 +1,112 @@
+---
+# roles/su_restriction/tasks/main.yml
+#
+# CIS 5.3.3 - Ensure access to the su command is restricted
+#
+# Restricts access to the su command via PAM pam_wheel.so.
+# Only members of the configured group (default: sudo) can use su.
+# This prevents non-admin users from escalating to other accounts.
+#
+# Two modes:
+#   1. Reuse the 'sudo' group (default, simplest)
+#   2. Create a dedicated 'su' group (su_create_dedicated_group: true)
+#
+# Idempotent: uses ansible.builtin.lineinfile with regexp match.
+# Safe to rerun.
+
+# ──────────────────────────────────────────────────────────
+# Optional: create a dedicated 'su' group
+# ──────────────────────────────────────────────────────────
+
+- name: Create dedicated su group (if configured)
+  ansible.builtin.group:
+    name: su
+    state: present
+  when: su_create_dedicated_group | bool
+
+- name: Set fact for effective allowed group
+  ansible.builtin.set_fact:
+    su_effective_group: "{{ 'su' if su_create_dedicated_group | bool else su_allowed_group }}"
+
+# ──────────────────────────────────────────────────────────
+# Configure PAM pam_wheel for su restriction
+# ──────────────────────────────────────────────────────────
+
+- name: Check if PAM su config exists
+  ansible.builtin.stat:
+    path: "{{ su_pam_config }}"
+  register: su_pam_stat
+
+- name: Fail if PAM su config not found
+  ansible.builtin.assert:
+    that:
+      - su_pam_stat.stat.exists
+    fail_msg: >-
+      {{ su_pam_config }} not found. Ensure the su package is installed.
+    success_msg: "PAM su config found at {{ su_pam_config }}."
+
+- name: Enable pam_wheel restriction in PAM su config
+  ansible.builtin.lineinfile:
+    path: "{{ su_pam_config }}"
+    regexp: '^\s*#?\s*auth\s+required\s+pam_wheel\.so.*$'
+    line: "auth       required   pam_wheel.so use_uid group={{ su_effective_group }}"
+    state: present
+    backup: yes
+  notify: Clear su restriction note
+
+- name: Remove any conflicting pam_wheel lines (without group=)
+  ansible.builtin.lineinfile:
+    path: "{{ su_pam_config }}"
+    regexp: '^\s*#?\s*auth\s+(sufficient|required)\s+pam_wheel\.so(?!\s+.*group=).*$'
+    state: absent
+    backup: yes
+
+# ──────────────────────────────────────────────────────────
+# Flush handlers
+# ──────────────────────────────────────────────────────────
+
+- name: Flush handlers
+  ansible.builtin.meta: flush_handlers
+
+# ──────────────────────────────────────────────────────────
+# Verification
+# ──────────────────────────────────────────────────────────
+
+- name: Read PAM su config for verification
+  ansible.builtin.command: grep -n 'pam_wheel' {{ su_pam_config }}
+  register: su_pam_check
+  changed_when: false
+  failed_when: false
+
+- name: Verify pam_wheel directive is present
+  ansible.builtin.assert:
+    that:
+      - "'pam_wheel.so' in su_pam_check.stdout"
+    fail_msg: >-
+      pam_wheel.so not found in {{ su_pam_config }}.
+      Run: grep pam_wheel {{ su_pam_config }}
+    success_msg: "pam_wheel.so is present in PAM su config."
+
+- name: Verify pam_wheel uses correct group
+  ansible.builtin.assert:
+    that:
+      - "su_effective_group in su_pam_check.stdout"
+    fail_msg: >-
+      pam_wheel is not configured for group '{{ su_effective_group }}'.
+      Current: {{ su_pam_check.stdout }}
+    success_msg: "pam_wheel restricts su to group '{{ su_effective_group }}'."
+
+- name: Verify pam_wheel uses use_uid
+  ansible.builtin.assert:
+    that:
+      - "'use_uid' in su_pam_check.stdout"
+    fail_msg: >-
+      pam_wheel does not use 'use_uid' flag.
+      Current: {{ su_pam_check.stdout }}
+    success_msg: "pam_wheel uses use_uid flag."
+
+- name: Report su restriction status
+  ansible.builtin.debug:
+    msg: >-
+      su command restricted to group '{{ su_effective_group }}' via pam_wheel.so.
+      Users not in this group cannot use su to switch accounts.

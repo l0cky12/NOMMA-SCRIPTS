@@ -1,0 +1,103 @@
+---
+# roles/ssh_permit_root_login/tasks/main.yml
+#
+# CIS 5.2.7 - Ensure sshd PermitRootLogin is disabled
+#
+# Sets PermitRootLogin no in sshd_config above any Include/Match
+# entries (first occurrence takes precedence). Disables direct
+# root login via SSH, forcing administrators to authenticate
+# as a normal user and escalate via sudo.
+#
+# Idempotent: uses ansible.builtin.lineinfile with regexp match.
+# Safe to rerun.
+
+# ──────────────────────────────────────────────────────────
+# Pre-flight: verify sshd_config exists
+# ──────────────────────────────────────────────────────────
+
+- name: Check if sshd_config exists
+  ansible.builtin.stat:
+    path: "{{ ssh_permit_root_login_sshd_config }}"
+  register: ssh_permit_root_login_sshd_stat
+
+- name: Fail if sshd_config not found
+  ansible.builtin.assert:
+    that:
+      - ssh_permit_root_login_sshd_stat.stat.exists
+    fail_msg: >-
+      {{ ssh_permit_root_login_sshd_config }} not found. Ensure openssh-server is installed.
+    success_msg: "sshd_config found at {{ ssh_permit_root_login_sshd_config }}."
+
+# ──────────────────────────────────────────────────────────
+# Configure PermitRootLogin (above Include/Match)
+# ──────────────────────────────────────────────────────────
+
+- name: Set PermitRootLogin in sshd_config
+  ansible.builtin.lineinfile:
+    path: "{{ ssh_permit_root_login_sshd_config }}"
+    regexp: '^\s*#?\s*PermitRootLogin\s+.*$'
+    line: "PermitRootLogin {{ 'no' if not (ssh_permit_root_login | bool) else 'yes' }}"
+    insertbefore: '^\s*(Include|Match)\s'
+    state: present
+    backup: yes
+    validate: 'sshd -t -f %s'
+  notify: Reload sshd
+
+# ──────────────────────────────────────────────────────────
+# Flush handlers so sshd reloads before verification
+# ──────────────────────────────────────────────────────────
+
+- name: Flush handlers
+  ansible.builtin.meta: flush_handlers
+
+# ──────────────────────────────────────────────────────────
+# Verification
+# ──────────────────────────────────────────────────────────
+
+- name: Read sshd_config for PermitRootLogin verification
+  ansible.builtin.command: grep -i '^PermitRootLogin' {{ ssh_permit_root_login_sshd_config }}
+  register: ssh_permit_root_login_check
+  changed_when: false
+  failed_when: false
+
+- name: Verify PermitRootLogin directive is set
+  ansible.builtin.assert:
+    that:
+      - "'PermitRootLogin' in ssh_permit_root_login_check.stdout"
+    fail_msg: >-
+      PermitRootLogin directive not found in {{ ssh_permit_root_login_sshd_config }}.
+      Run: grep -i '^PermitRootLogin' {{ ssh_permit_root_login_sshd_config }}
+    success_msg: "PermitRootLogin directive is present in sshd_config."
+
+- name: Verify PermitRootLogin is set to no
+  ansible.builtin.assert:
+    that:
+      - "ssh_permit_root_login_check.stdout | lower is search('permitrootlogin\\s+no')"
+    fail_msg: >-
+      PermitRootLogin is not set to 'no' in {{ ssh_permit_root_login_sshd_config }}.
+      Current value: {{ ssh_permit_root_login_check.stdout }}
+    success_msg: "PermitRootLogin is set to 'no'."
+  when: not (ssh_permit_root_login | bool)
+
+- name: Verify effective SSH config via sshd -T
+  ansible.builtin.command: sshd -T -f {{ ssh_permit_root_login_sshd_config }}
+  register: ssh_permit_root_login_effective
+  changed_when: false
+  failed_when: false
+
+- name: Verify effective PermitRootLogin matches configured value
+  ansible.builtin.assert:
+    that:
+      - "'permitrootlogin no' in ssh_permit_root_login_effective.stdout | lower"
+    fail_msg: >-
+      Effective PermitRootLogin does not match 'no'.
+      Run: sshd -T -f {{ ssh_permit_root_login_sshd_config }} | grep -i permitrootlogin
+    success_msg: "Effective PermitRootLogin is 'no'."
+  when:
+    - ssh_permit_root_login_effective.rc == 0
+    - not (ssh_permit_root_login | bool)
+
+- name: Report SSH PermitRootLogin status
+  ansible.builtin.debug:
+    msg: >-
+      SSH PermitRootLogin is {{ 'enabled (direct root SSH login allowed)' if ssh_permit_root_login | bool else 'disabled (root must use sudo escalation)' }}.

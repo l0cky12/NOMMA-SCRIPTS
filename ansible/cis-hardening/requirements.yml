@@ -1,0 +1,10 @@
+---
+collections:
+  - name: ansible.posix
+  - name: community.general
+
+# Optional local validation tools can be installed with:
+# python3 -m venv .venv
+# . .venv/bin/activate
+# pip install ansible-core ansible-lint yamllint
+# ansible-galaxy collection install -r requirements.yml

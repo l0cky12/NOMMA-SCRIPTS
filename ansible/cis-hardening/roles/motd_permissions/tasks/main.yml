@@ -1,0 +1,122 @@
+---
+# roles/motd_permissions/tasks/main.yml
+#
+# CIS 1.6.4 - Ensure permissions on /etc/motd are configured
+#
+# Sets owner root:root and mode (0644 by default) on /etc/motd,
+# or removes the file entirely.  Handles symlinks by resolving
+# the real path with readlink before applying permissions.
+#
+# Idempotent: uses ansible.builtin.file module which only changes
+# when the current state differs from desired.
+
+# ──────────────────────────────────────────────────────────
+# Pre-flight: check if /etc/motd exists (following symlinks)
+# ──────────────────────────────────────────────────────────
+
+- name: Check if /etc/motd exists (following symlinks)
+  ansible.builtin.stat:
+    path: "{{ motd_perms_file }}"
+    follow: yes
+  register: motd_file_stat
+
+# ──────────────────────────────────────────────────────────
+# Branch A: Enforce permissions on existing file
+# ──────────────────────────────────────────────────────────
+
+- name: Resolve symlink target for /etc/motd
+  ansible.builtin.command: readlink -e {{ motd_perms_file }}
+  register: motd_realpath
+  changed_when: false
+  when:
+    - motd_perms_ensure_present | bool
+    - motd_file_stat.stat.exists
+
+- name: Set owner, group, and mode on /etc/motd (resolved path)
+  ansible.builtin.file:
+    path: "{{ motd_realpath.stdout }}"
+    owner: "{{ motd_perms_owner }}"
+    group: "{{ motd_perms_group }}"
+    mode: "{{ motd_perms_mode }}"
+    follow: yes
+  when:
+    - motd_perms_ensure_present | bool
+    - motd_file_stat.stat.exists
+    - motd_realpath.stdout | length > 0
+
+- name: Create /etc/motd if it does not exist (empty file with correct perms)
+  ansible.builtin.file:
+    path: "{{ motd_perms_file }}"
+    state: touch
+    owner: "{{ motd_perms_owner }}"
+    group: "{{ motd_perms_group }}"
+    mode: "{{ motd_perms_mode }}"
+  when:
+    - motd_perms_ensure_present | bool
+    - not motd_file_stat.stat.exists
+
+# ──────────────────────────────────────────────────────────
+# Branch B: Remove /etc/motd
+# ──────────────────────────────────────────────────────────
+
+- name: Remove /etc/motd
+  ansible.builtin.file:
+    path: "{{ motd_perms_file }}"
+    state: absent
+  when: not (motd_perms_ensure_present | bool)
+
+# ──────────────────────────────────────────────────────────
+# Verification: re-stat the file and validate against CIS check
+# ──────────────────────────────────────────────────────────
+
+- name: Re-check /etc/motd after changes (following symlinks)
+  ansible.builtin.stat:
+    path: "{{ motd_perms_file }}"
+    follow: yes
+  register: motd_post_stat
+
+- name: Verify /etc/motd state matches desired configuration
+  ansible.builtin.assert:
+    that:
+      - motd_post_stat.stat.exists == (motd_perms_ensure_present | bool)
+    fail_msg: >-
+      /etc/motd existence={{ motd_post_stat.stat.exists }},
+      expected={{ motd_perms_ensure_present | bool }}
+    success_msg: >-
+      /etc/motd state correct: {{ 'present' if motd_perms_ensure_present | bool else 'absent' }}
+
+- name: Verify /etc/motd owner is root
+  ansible.builtin.assert:
+    that:
+      - motd_post_stat.stat.pw_name == motd_perms_owner
+    fail_msg: >-
+      /etc/motd owner is {{ motd_post_stat.stat.pw_name }}, expected {{ motd_perms_owner }}
+    success_msg: "/etc/motd owner is root"
+  when: motd_perms_ensure_present | bool
+
+- name: Verify /etc/motd group is root
+  ansible.builtin.assert:
+    that:
+      - motd_post_stat.stat.gr_name == motd_perms_group
+    fail_msg: >-
+      /etc/motd group is {{ motd_post_stat.stat.gr_name }}, expected {{ motd_perms_group }}
+    success_msg: "/etc/motd group is root"
+  when: motd_perms_ensure_present | bool
+
+- name: Verify /etc/motd mode is acceptable per CIS 1.6.4
+  ansible.builtin.assert:
+    that:
+      - motd_post_stat.stat.mode in motd_perms_acceptable_modes
+    fail_msg: >-
+      /etc/motd mode is {{ motd_post_stat.stat.mode }}.
+      CIS 1.6.4 accepts: {{ motd_perms_acceptable_modes | join(', ') }}
+    success_msg: "/etc/motd mode is {{ motd_post_stat.stat.mode }} (CIS acceptable)"
+  when: motd_perms_ensure_present | bool
+
+- name: Report /etc/motd final state
+  ansible.builtin.debug:
+    msg: >-
+      /etc/motd: {{ 'absent' if not motd_post_stat.stat.exists else
+      'owner=' ~ motd_post_stat.stat.pw_name ~ 
+      ' group=' ~ motd_post_stat.stat.gr_name ~ 
+      ' mode=' ~ motd_post_stat.stat.mode }}

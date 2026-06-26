@@ -1,0 +1,20 @@
+---
+# roles/cron_dir_permissions/defaults/main.yml
+#
+# Defaults for CIS - Ensure permissions on cron directories are configured
+# Applies to: /etc/cron.hourly, /etc/cron.daily, /etc/cron.weekly, /etc/cron.monthly, /etc/cron.d
+
+# Cron directories to harden
+cron_dir_permissions_dirs:
+  - /etc/cron.hourly
+  - /etc/cron.daily
+  - /etc/cron.weekly
+  - /etc/cron.monthly
+  - /etc/cron.d
+
+# Owner and group (must be root:root per CIS)
+cron_dir_permissions_owner: root
+cron_dir_permissions_group: root
+
+# Directory mode — CIS check requires 0700 (drwx------, owner only)
+cron_dir_permissions_mode: "0700"

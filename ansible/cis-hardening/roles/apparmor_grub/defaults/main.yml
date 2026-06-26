@@ -1,0 +1,25 @@
+---
+# roles/apparmor_grub/defaults/main.yml
+#
+# Defaults for CIS 1.3.1.2 - AppArmor enabled at boot via GRUB
+
+# GRUB config file path (Debian/Ubuntu default)
+apparmor_grub_config_file: /etc/default/grub
+
+# GRUB command to rebuild config (Debian/Ubuntu)
+# On RHEL-family this would be: grub2-mkconfig -o /boot/grub2/grub.cfg
+apparmor_grub_update_command: update-grub
+
+# The kernel command-line parameters required by this control:
+#   apparmor=1          - Enable AppArmor at boot
+#   security=apparmor   - Set AppArmor as the primary LSM
+apparmor_grub_required_params:
+  - apparmor=1
+  - security=apparmor
+
+# Which GRUB_CMDLINE variable to modify.
+# CIS recommends GRUB_CMDLINE_LINUX (applies to all boot entries).
+# Some setups also use GRUB_CMDLINE_LINUX_DEFAULT (normal boot only).
+# If you want both, set: ["GRUB_CMDLINE_LINUX", "GRUB_CMDLINE_LINUX_DEFAULT"]
+apparmor_grub_cmdline_vars:
+  - GRUB_CMDLINE_LINUX

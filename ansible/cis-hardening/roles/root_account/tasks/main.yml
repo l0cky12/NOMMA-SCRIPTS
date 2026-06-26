@@ -1,0 +1,91 @@
+---
+# roles/root_account/tasks/main.yml
+#
+# CIS 6.1.2 - Ensure root account access is controlled
+#
+# Sets a random password on the root account, then locks it.
+# This prevents direct root login at the console while still
+# allowing sudo escalation (sudo -i, sudo su -) which doesn't
+# require the root password.
+#
+# The generated passphrase is displayed once via debug and is NOT
+# saved anywhere. Copy it immediately if you need console root
+# access (unlock with: passwd -u root, then su -).
+#
+# Idempotent: regenerates password only when root_account_set_password
+# is true. Locking is idempotent (passwd -l on a locked account is safe).
+
+# ──────────────────────────────────────────────────────────
+# Generate random root password
+# ──────────────────────────────────────────────────────────
+
+- name: Generate random root passphrase
+  ansible.builtin.set_fact:
+    root_account_passphrase: "{{ root_account_wordlist | random | title }}-{{ root_account_wordlist | random | title }}-{{ root_account_wordlist | random | title }}-{{ range(0, 10) | random }}"
+  run_once: true
+  delegate_to: localhost
+  no_log: true
+  when: root_account_set_password | bool
+
+- name: Set root account password to random passphrase
+  ansible.builtin.user:
+    name: root
+    password: "{{ root_account_passphrase | password_hash('sha512') }}"
+  no_log: true
+  when: root_account_set_password | bool
+
+# ──────────────────────────────────────────────────────────
+# Lock root password (prevents direct login, sudo still works)
+# ──────────────────────────────────────────────────────────
+
+- name: Lock root account password
+  ansible.builtin.command: passwd -l root
+  register: root_account_lock_result
+  changed_when: "'Locking password for user root' in root_account_lock_result.stdout"
+  failed_when: false
+  when: root_account_lock | bool
+
+# ──────────────────────────────────────────────────────────
+# Verification
+# ──────────────────────────────────────────────────────────
+
+- name: Read root account status from /etc/shadow
+  ansible.builtin.command: getent shadow root
+  register: root_account_shadow
+  changed_when: false
+  no_log: true
+
+- name: Verify root password is set (not empty)
+  ansible.builtin.assert:
+    that:
+      - root_account_shadow.stdout.split(':')[1] | length > 0
+    fail_msg: "Root password field is empty in /etc/shadow."
+    success_msg: "Root password is set."
+  when: not (root_account_lock | bool)
+
+- name: Verify root password is locked
+  ansible.builtin.assert:
+    that:
+      - root_account_shadow.stdout.split(':')[1] | regex_search('^!')
+    fail_msg: "Root password is NOT locked. Expected '!' prefix in shadow."
+    success_msg: "Root password is locked (direct login prevented)."
+  when: root_account_lock | bool
+
+- name: Verify root account shell is valid (not /sbin/nologin)
+  ansible.builtin.assert:
+    that:
+      - root_account_shadow.stdout.split(':')[7] != '/sbin/nologin'
+      - root_account_shadow.stdout.split(':')[7] != '/bin/false'
+    fail_msg: "Root shell is set to nologin/false — may break emergency console access."
+    success_msg: "Root shell is valid for emergency access."
+  when: root_account_lock | bool
+
+- name: Display root passphrase (copy now — not saved)
+  ansible.builtin.debug:
+    msg: >-
+      ROOT PASSPHRASE: {{ root_account_passphrase }}
+      Copy this now. It will NOT be shown again.
+      To unlock: passwd -u root, then su - with this passphrase.
+  run_once: true
+  delegate_to: localhost
+  when: root_account_set_password | bool

@@ -1,0 +1,122 @@
+---
+- name: Ensure Root CA directory structure exists
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "{{ item.mode }}"
+  loop:
+    - { path: "{{ root_ca_base_dir }}", mode: "0755" }
+    - { path: "{{ root_ca_base_dir }}/certs", mode: "0755" }
+    - { path: "{{ root_ca_base_dir }}/crl", mode: "0755" }
+    - { path: "{{ root_ca_base_dir }}/csr", mode: "0755" }
+    - { path: "{{ root_ca_base_dir }}/newcerts", mode: "0755" }
+    - { path: "{{ root_ca_private_dir }}", mode: "0700" }
+
+- name: Initialize Root CA database files
+  ansible.builtin.copy:
+    dest: "{{ item.dest }}"
+    content: "{{ item.content }}"
+    owner: root
+    group: root
+    mode: "0644"
+    force: false
+  loop:
+    - { dest: "{{ root_ca_base_dir }}/index.txt", content: "" }
+    - { dest: "{{ root_ca_base_dir }}/serial", content: "1000\n" }
+    - { dest: "{{ root_ca_base_dir }}/crlnumber", content: "1000\n" }
+
+- name: Install Root CA OpenSSL configuration
+  ansible.builtin.template:
+    src: root-openssl.cnf.j2
+    dest: "{{ root_ca_openssl_cnf }}"
+    owner: root
+    group: root
+    mode: "0644"
+    backup: true
+
+- name: Generate encrypted Root CA private key if missing
+  ansible.builtin.command:
+    argv:
+      - openssl
+      - genpkey
+      - -algorithm
+      - RSA
+      - -aes-256-cbc
+      - -pass
+      - "pass:{{ vault_root_ca_key_passphrase }}"
+      - -pkeyopt
+      - "rsa_keygen_bits:{{ root_ca_rsa_bits }}"
+      - -out
+      - "{{ root_ca_key_path }}"
+    creates: "{{ root_ca_key_path }}"
+  no_log: true
+
+- name: Secure Root CA private key permissions
+  ansible.builtin.file:
+    path: "{{ root_ca_key_path }}"
+    owner: root
+    group: root
+    mode: "0600"
+
+- name: Generate self-signed Root CA certificate if missing
+  ansible.builtin.command:
+    argv:
+      - openssl
+      - req
+      - -config
+      - "{{ root_ca_openssl_cnf }}"
+      - -key
+      - "{{ root_ca_key_path }}"
+      - -passin
+      - "pass:{{ vault_root_ca_key_passphrase }}"
+      - -new
+      - -x509
+      - -days
+      - "{{ root_ca_days }}"
+      - -sha256
+      - -extensions
+      - v3_ca
+      - -out
+      - "{{ root_ca_cert_path }}"
+      - -subj
+      - >-
+        /C={{ pki_country }}/ST={{ pki_state }}/L={{ pki_locality }}
+        /O={{ pki_organization }}/OU={{ pki_org_unit }}
+        /CN={{ root_ca_common_name }}
+    creates: "{{ root_ca_cert_path }}"
+  no_log: true
+
+- name: Ensure Root CA certificate is public-readable
+  ansible.builtin.file:
+    path: "{{ root_ca_cert_path }}"
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Generate initial Root CA CRL
+  ansible.builtin.command:
+    argv:
+      - openssl
+      - ca
+      - -config
+      - "{{ root_ca_openssl_cnf }}"
+      - -gencrl
+      - -passin
+      - "pass:{{ vault_root_ca_key_passphrase }}"
+      - -out
+      - "{{ root_ca_crl_path }}"
+  changed_when: false
+  no_log: true
+
+- name: Validate Root CA certificate text can be parsed
+  ansible.builtin.command:
+    argv:
+      - openssl
+      - x509
+      - -in
+      - "{{ root_ca_cert_path }}"
+      - -noout
+      - -text
+  changed_when: false

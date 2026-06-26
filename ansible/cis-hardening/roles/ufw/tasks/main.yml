@@ -1,0 +1,134 @@
+---
+# roles/ufw/tasks/main.yml
+#
+# CIS - Ensure ufw is installed, enabled, and running
+#
+# Ensures ufw is installed, unmasked, enabled, started, and
+# configured with safe defaults (deny inbound, allow outbound).
+# Allows SSH before enabling to prevent lockout.
+#
+# CIS checks verified:
+#   systemctl is-active ufw     -> active
+#   systemctl is-enabled ufw.service -> enabled
+#   ufw status                 -> Status: active
+
+# ──────────────────────────────────────────────────────────
+# Install ufw (should already be present from baseline)
+# ──────────────────────────────────────────────────────────
+
+- name: Ensure ufw package is installed
+  ansible.builtin.apt:
+    name: ufw
+    state: present
+
+# ──────────────────────────────────────────────────────────
+# Unmask ufw service (may be masked on some systems)
+# ──────────────────────────────────────────────────────────
+
+- name: Unmask ufw service
+  ansible.builtin.systemd:
+    name: ufw.service
+    masked: no
+
+# ──────────────────────────────────────────────────────────
+# Set default policies
+# ──────────────────────────────────────────────────────────
+
+- name: Set UFW default inbound policy to deny
+  community.general.ufw:
+    direction: incoming
+    policy: deny
+
+- name: Set UFW default outbound policy to allow
+  community.general.ufw:
+    direction: outgoing
+    policy: allow
+
+# ──────────────────────────────────────────────────────────
+# Allow SSH before enabling the firewall (prevent lockout)
+# ──────────────────────────────────────────────────────────
+
+- name: Allow SSH through UFW before enabling firewall
+  community.general.ufw:
+    rule: allow
+    name: OpenSSH
+  when: ufw_allow_ssh | bool
+
+# ──────────────────────────────────────────────────────────
+# Disable nftables (conflicts with ufw on Debian)
+# ──────────────────────────────────────────────────────────
+
+- name: Stop and disable nftables service
+  ansible.builtin.systemd:
+    name: nftables
+    state: stopped
+    enabled: false
+  failed_when: false
+
+- name: Remove nftables package
+  ansible.builtin.apt:
+    name: nftables
+    state: absent
+    purge: true
+  when: ufw_remove_nftables | bool
+
+# ──────────────────────────────────────────────────────────
+# Enable and start ufw service
+# ──────────────────────────────────────────────────────────
+
+- name: Enable UFW firewall
+  community.general.ufw:
+    state: enabled
+
+- name: Enable and start ufw systemd service
+  ansible.builtin.systemd:
+    name: ufw.service
+    state: started
+    enabled: yes
+
+# ──────────────────────────────────────────────────────────
+# Verification: CIS checks
+# ──────────────────────────────────────────────────────────
+
+- name: Verify ufw service is active
+  ansible.builtin.command: systemctl is-active ufw
+  register: ufw_active_check
+  changed_when: false
+  failed_when: false
+
+- name: Assert ufw is active
+  ansible.builtin.assert:
+    that:
+      - ufw_active_check.stdout | trim == 'active'
+    fail_msg: "ufw service is not active. Run: systemctl start ufw"
+    success_msg: "ufw service is active"
+
+- name: Verify ufw service is enabled
+  ansible.builtin.command: systemctl is-enabled ufw.service
+  register: ufw_enabled_check
+  changed_when: false
+  failed_when: false
+
+- name: Assert ufw is enabled at boot
+  ansible.builtin.assert:
+    that:
+      - ufw_enabled_check.stdout | trim == 'enabled'
+    fail_msg: "ufw service is not enabled. Run: systemctl enable ufw.service"
+    success_msg: "ufw service is enabled at boot"
+
+- name: Verify ufw status is active
+  ansible.builtin.command: ufw status
+  register: ufw_status_check
+  changed_when: false
+  failed_when: false
+
+- name: Assert ufw status shows active
+  ansible.builtin.assert:
+    that:
+      - "'active' in (ufw_status_check.stdout | lower)"
+    fail_msg: "ufw status is not active. Run: ufw --force enable"
+    success_msg: "ufw status is active"
+
+- name: Report ufw status
+  ansible.builtin.debug:
+    msg: "{{ ufw_status_check.stdout }}"

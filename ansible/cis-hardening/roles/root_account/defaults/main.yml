@@ -1,0 +1,33 @@
+---
+# roles/root_account/defaults/main.yml
+#
+# CIS 6.1.2 - Ensure root account access is controlled
+# Sets a random password on the root account and locks it from
+# direct console login. Admin users escalate via sudo.
+
+# Whether to generate a new random root password on each run.
+# If true, a new passphrase is generated and set.
+# If false, the existing password is left unchanged.
+root_account_set_password: true
+
+# Whether to lock the root password (passwd -l root).
+# CIS recommends locking the root account when sudo is configured.
+# A locked password means 'su -' requires the password but it's
+# impossible to brute-force. The account can still be su'd to via
+# sudo (which doesn't need the password).
+root_account_lock: true
+
+# Path to /etc/passwd for verification
+root_account_passwd_file: /etc/passwd
+
+# Wordlist for passphrase generation (Word-Word-Word-Number format)
+root_account_wordlist:
+  - Anchor, Breeze, Cobalt, Drift, Ember, Falcon, Grove, Haven
+  - Igloo, Jasper, Karma, Lunar, Mango, Noble, Orbit, Plume
+  - Quartz, Ridge, Summit, Tidal, Valor, Willow, Xenon, Yield
+  - Zephyr, Blaze, Coral, Dune, Echo, Frost, Glyph, Haste
+  - Ionic, Jolt, Kneel, Latch, Mirth, Nexus, Onyx, Pulse, Quilt
+  - Rift, Spore, Thorn, Umber, Vivid, Wren, Yodel, Zest, Arc
+  - Bolt, Crest, Dawn, Fang, Glow, Husk, Iris, Jade, Knot, Loom
+  - Mist, Nail, Oath, Pike, Quill, Raven, Sage, Tide, Vine, Wisp
+  - Zion, Bring, Snarl, Gopher, Crane, Flint, Hollow, Ivory, Kettle

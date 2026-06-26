@@ -1,0 +1,21 @@
+---
+# playbooks/cis-cron-dir-permissions.yml
+#
+# CIS - Ensure permissions on cron directories are configured
+#
+# Sets root:root ownership and mode 0700 on:
+#   /etc/cron.hourly, /etc/cron.daily, /etc/cron.weekly,
+#   /etc/cron.monthly, /etc/cron.d
+#
+# Usage:
+#   ansible-playbook -i inventory.ini playbooks/cis-cron-dir-permissions.yml
+#
+# Check mode:
+#   ansible-playbook -i inventory.ini playbooks/cis-cron-dir-permissions.yml --check
+
+- name: CIS - Permissions on cron directories
+  hosts: linux_servers
+  become: true
+
+  roles:
+    - cron_dir_permissions

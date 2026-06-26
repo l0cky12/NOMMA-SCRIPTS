@@ -1,0 +1,26 @@
+---
+# playbooks/cis-1.3.1.2-apparmor-grub.yml
+#
+# CIS 1.3.1.2 - Ensure AppArmor is enabled in the bootloader configuration
+#
+# Adds apparmor=1 and security=apparmor to GRUB_CMDLINE_LINUX,
+# runs update-grub, and verifies the parameters appear in grub.cfg.
+#
+# Usage:
+#   ansible-playbook -i inventory/hosts.yml playbooks/cis-1.3.1.2-apparmor-grub.yml --ask-become-pass
+#
+# Check mode:
+#   ansible-playbook -i inventory/hosts.yml playbooks/cis-1.3.1.2-apparmor-grub.yml --check --ask-become-pass
+#
+# Requirements:
+#   - Target hosts run Debian/Ubuntu with GRUB 2
+#   - /boot must be mounted (for update-grub to write grub.cfg)
+#   - The apparmor package must already be installed
+#     (see playbooks/baseline-hardening.yml)
+
+- name: CIS 1.3.1.2 - AppArmor enabled in bootloader
+  hosts: linux_servers
+  become: true
+
+  roles:
+    - apparmor_grub

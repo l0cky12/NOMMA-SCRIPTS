@@ -1,0 +1,16 @@
+---
+# roles/sudo_logfile/defaults/main.yml
+#
+# CIS 5.3.1 - Ensure sudo log file exists
+# Configures a dedicated log file for sudo commands.
+
+# Path to the sudo log file. All sudo activity is written here.
+sudo_logfile_path: /var/log/sudo.log
+
+# Owner and permissions for the log file.
+sudo_logfile_owner: root
+sudo_logfile_group: root
+sudo_logfile_mode: "0600"
+
+# Path to the sudoers drop-in directory.
+sudo_logfile_sudoers_d: /etc/sudoers.d

@@ -1,0 +1,16 @@
+---
+# roles/root_gid0/defaults/main.yml
+#
+# CIS 6.1.1 - Ensure group root is the only GID 0 group
+# Ensures no group other than 'root' has GID 0.
+
+# Path to /etc/group
+root_gid0_group_file: /etc/group
+
+# Expected group name for GID 0
+root_gid0_expected_group: root
+
+# Whether to automatically fix unauthorized GID 0 groups.
+# If true, any group with GID 0 that isn't 'root' is removed.
+# If false, the role will fail with a diagnostic message.
+root_gid0_auto_fix: true

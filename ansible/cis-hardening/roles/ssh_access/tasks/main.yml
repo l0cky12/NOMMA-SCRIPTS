@@ -1,0 +1,136 @@
+---
+# roles/ssh_access/tasks/main.yml
+#
+# CIS 5.2.8 - Ensure SSH access is limited
+#
+# Restricts SSH remote access to a specific allow list of users.
+# Uses AllowUsers only (not AllowGroups) per CIS recommendation
+# for clarity and ease of administration.
+#
+# The AllowUsers directive is placed BEFORE any Include or Match
+# statements, as first occurrence takes precedence in sshd_config.
+#
+# Idempotent: uses ansible.builtin.lineinfile with regexp match.
+# Safe to rerun.
+
+# ──────────────────────────────────────────────────────────
+# Pre-flight: verify sshd_config exists
+# ──────────────────────────────────────────────────────────
+
+- name: Check if sshd_config exists
+  ansible.builtin.stat:
+    path: "{{ ssh_access_sshd_config }}"
+  register: ssh_access_sshd_stat
+
+- name: Fail if sshd_config not found
+  ansible.builtin.assert:
+    that:
+      - ssh_access_sshd_stat.stat.exists
+    fail_msg: >-
+      {{ ssh_access_sshd_config }} not found. Ensure openssh-server is installed.
+    success_msg: "sshd_config found at {{ ssh_access_sshd_config }}."
+
+# ──────────────────────────────────────────────────────────
+# Configure AllowUsers (above Include/Match, first occurrence wins)
+# ──────────────────────────────────────────────────────────
+
+- name: Set AllowUsers directive in sshd_config
+  ansible.builtin.lineinfile:
+    path: "{{ ssh_access_sshd_config }}"
+    regexp: '^\s*#?\s*AllowUsers\s+.*$'
+    line: "AllowUsers {{ ssh_allow_users | join(' ') }}"
+    insertbefore: '^\s*(Include|Match)\s'
+    state: present
+    backup: yes
+    validate: 'sshd -t -f %s'
+  notify: Reload sshd
+
+# ──────────────────────────────────────────────────────────
+# Configure AllowGroups (optional, disabled by default)
+# ──────────────────────────────────────────────────────────
+
+- name: Set AllowGroups directive in sshd_config
+  ansible.builtin.lineinfile:
+    path: "{{ ssh_access_sshd_config }}"
+    regexp: '^\s*#?\s*AllowGroups\s+.*$'
+    line: "AllowGroups {{ ssh_allow_groups | join(' ') }}"
+    insertbefore: '^\s*(Include|Match)\s'
+    state: present
+    backup: yes
+    validate: 'sshd -t -f %s'
+  when: ssh_allow_groups_enabled | bool
+  notify: Reload sshd
+
+- name: Remove AllowGroups directive (if disabled)
+  ansible.builtin.lineinfile:
+    path: "{{ ssh_access_sshd_config }}"
+    regexp: '^\s*#?\s*AllowGroups\s+.*$'
+    state: absent
+    backup: yes
+    validate: 'sshd -t -f %s'
+  when: not (ssh_allow_groups_enabled | bool)
+  notify: Reload sshd
+
+# ──────────────────────────────────────────────────────────
+# Flush handlers so sshd reloads before verification
+# ──────────────────────────────────────────────────────────
+
+- name: Flush handlers
+  ansible.builtin.meta: flush_handlers
+
+# ──────────────────────────────────────────────────────────
+# Verification
+# ──────────────────────────────────────────────────────────
+
+- name: Read sshd_config for AllowUsers verification
+  ansible.builtin.command: grep -i '^AllowUsers' {{ ssh_access_sshd_config }}
+  register: ssh_access_allowusers_check
+  changed_when: false
+  failed_when: false
+
+- name: Verify AllowUsers directive is set
+  ansible.builtin.assert:
+    that:
+      - "'AllowUsers' in ssh_access_allowusers_check.stdout"
+    fail_msg: >-
+      AllowUsers directive not found in {{ ssh_access_sshd_config }}.
+      Run: grep -i '^AllowUsers' {{ ssh_access_sshd_config }}
+    success_msg: "AllowUsers directive is present in sshd_config."
+
+- name: Verify all allowed users are in the directive
+  ansible.builtin.assert:
+    that:
+      - "item in ssh_access_allowusers_check.stdout"
+    fail_msg: "User '{{ item }}' not found in AllowUsers directive."
+    success_msg: "User '{{ item }}' is in AllowUsers directive."
+  loop: "{{ ssh_allow_users }}"
+
+- name: Read sshd_config for AllowGroups verification
+  ansible.builtin.command: grep -i '^AllowGroups' {{ ssh_access_sshd_config }}
+  register: ssh_access_allowgroups_check
+  changed_when: false
+  failed_when: false
+
+- name: Verify AllowGroups is absent (when disabled)
+  ansible.builtin.assert:
+    that:
+      - "ssh_access_allowgroups_check.stdout | length == 0"
+    fail_msg: >-
+      AllowGroups directive found but should be absent (ssh_allow_groups_enabled=false).
+      Run: grep -i '^AllowGroups' {{ ssh_access_sshd_config }}
+    success_msg: "AllowGroups directive is absent (as expected)."
+  when: not (ssh_allow_groups_enabled | bool)
+
+- name: Verify AllowGroups is set (when enabled)
+  ansible.builtin.assert:
+    that:
+      - "'AllowGroups' in ssh_access_allowgroups_check.stdout"
+    fail_msg: "AllowGroups directive not found but should be set (ssh_allow_groups_enabled=true)."
+    success_msg: "AllowGroups directive is present."
+  when: ssh_allow_groups_enabled | bool
+
+- name: Report SSH access restriction status
+  ansible.builtin.debug:
+    msg: >-
+      SSH access restricted to users: {{ ssh_allow_users | join(', ') }}.
+      AllowGroups: {{ 'enabled' if ssh_allow_groups_enabled | bool else 'disabled' }}.

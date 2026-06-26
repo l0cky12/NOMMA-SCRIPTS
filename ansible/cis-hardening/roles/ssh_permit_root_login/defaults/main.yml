@@ -1,0 +1,11 @@
+---
+# roles/ssh_permit_root_login/defaults/main.yml
+#
+# CIS 5.2.7 - Ensure sshd PermitRootLogin is disabled
+# Disables direct root login via SSH.
+
+# Whether root SSH login is permitted. false = disabled (secure).
+ssh_permit_root_login: false
+
+# Path to the main sshd configuration file.
+ssh_permit_root_login_sshd_config: /etc/ssh/sshd_config

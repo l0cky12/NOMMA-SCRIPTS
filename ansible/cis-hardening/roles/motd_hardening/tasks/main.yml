@@ -1,0 +1,134 @@
+---
+# roles/motd_hardening/tasks/main.yml
+#
+# CIS 1.6.1 - Ensure the message of the day (MOTD) is configured properly
+#
+# Either deploys a sanitized warning banner to /etc/motd or removes
+# the file entirely.  In both cases, ensures no OS platform
+# information (\m, \r, \s, \v, "Debian", "Ubuntu") is leaked.
+#
+# Idempotent: uses ansible.builtin.copy (content-based) so re-running
+# with the same banner makes no changes.
+
+# ──────────────────────────────────────────────────────────
+# Pre-flight: check if /etc/motd currently exists
+# ──────────────────────────────────────────────────────────
+
+- name: Check if /etc/motd exists
+  ansible.builtin.stat:
+    path: "{{ motd_file }}"
+  register: motd_stat
+
+# ──────────────────────────────────────────────────────────
+# Branch A: Deploy a sanitized MOTD warning banner
+# ──────────────────────────────────────────────────────────
+
+- name: Deploy MOTD warning banner
+  ansible.builtin.copy:
+    dest: "{{ motd_file }}"
+    content: "{{ motd_banner }}"
+    owner: root
+    group: root
+    mode: "0644"
+    backup: yes
+  when: motd_deploy | bool
+  notify: MOTD changed
+
+# ──────────────────────────────────────────────────────────
+# Branch B: Remove MOTD file entirely
+# ──────────────────────────────────────────────────────────
+
+- name: Remove MOTD file
+  ansible.builtin.file:
+    path: "{{ motd_file }}"
+    state: absent
+  when: not (motd_deploy | bool)
+
+# ──────────────────────────────────────────────────────────
+# Disable dynamic MOTD scripts (Debian/Ubuntu /etc/update-motd.d/)
+# These can leak OS info (kernel version, package counts, etc.)
+# ──────────────────────────────────────────────────────────
+
+- name: Find dynamic MOTD scripts
+  ansible.builtin.find:
+    paths: /etc/update-motd.d
+    file_type: file
+    recurse: yes
+  register: motd_scripts
+  when:
+    - motd_remove_dynamic_motd | bool
+    - ansible_facts['os_family'] in ['Debian', 'Ubuntu']
+
+- name: Disable dynamic MOTD scripts (remove execute bit)
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    mode: "0644"
+  loop: "{{ motd_scripts.files }}"
+  loop_control:
+    label: "{{ item.path }}"
+  when:
+    - motd_remove_dynamic_motd | bool
+    - motd_scripts.files | length > 0
+
+# ──────────────────────────────────────────────────────────
+# Verification
+# ──────────────────────────────────────────────────────────
+
+- name: Re-check if /etc/motd exists after changes
+  ansible.builtin.stat:
+    path: "{{ motd_file }}"
+  register: motd_post_stat
+
+- name: Verify MOTD file state matches desired configuration
+  ansible.builtin.assert:
+    that:
+      - motd_post_stat.stat.exists == (motd_deploy | bool)
+    fail_msg: >-
+      /etc/motd existence={{ motd_post_stat.stat.exists }}
+      but motd_deploy={{ motd_deploy }}.  State mismatch.
+    success_msg: "MOTD file state correct: {{ 'present' if motd_deploy | bool else 'absent' }}"
+
+- name: Read MOTD content for verification
+  ansible.builtin.command: cat {{ motd_file }}
+  register: motd_content
+  changed_when: false
+  when: motd_deploy | bool
+
+- name: Verify MOTD contains organization name (NOMMA)
+  ansible.builtin.assert:
+    that:
+      - "'NOMMA' in motd_content.stdout"
+    fail_msg: "MOTD does not contain the organization name (NOMMA)."
+    success_msg: "MOTD contains organization name (NOMMA)."
+  when: motd_deploy | bool
+
+- name: Verify MOTD does not leak OS platform information
+  ansible.builtin.assert:
+    that:
+      - "'\\m' not in motd_content.stdout"
+      - "'\\r' not in motd_content.stdout"
+      - "'\\s' not in motd_content.stdout"
+      - "'\\v' not in motd_content.stdout"
+      - "'Debian' not in motd_content.stdout"
+      - "'Ubuntu' not in motd_content.stdout"
+    fail_msg: >-
+      MOTD contains forbidden OS platform references
+      (\\m, \\r, \\s, \\v, Debian, or Ubuntu).
+    success_msg: "MOTD is free of OS platform references."
+  when: motd_deploy | bool
+
+- name: Verify MOTD mentions monitoring policy
+  ansible.builtin.assert:
+    that:
+      - "'monitor' in motd_content.stdout | lower"
+    fail_msg: "MOTD does not mention monitoring policy."
+    success_msg: "MOTD mentions monitoring policy."
+  when: motd_deploy | bool
+
+- name: Verify MOTD file permissions
+  ansible.builtin.assert:
+    that:
+      - motd_post_stat.stat.mode == '0644'
+    fail_msg: "MOTD file mode is {{ motd_post_stat.stat.mode }}, expected 0644."
+    success_msg: "MOTD file mode is 0644."
+  when: motd_deploy | bool

@@ -1,0 +1,11 @@
+---
+# roles/login_banner/handlers/main.yml
+
+- name: Login banner changed
+  ansible.builtin.debug:
+    msg: "Login banners updated. New banner will show on next login attempt."
+
+- name: Reload sshd
+  ansible.builtin.systemd:
+    name: ssh
+    state: reloaded

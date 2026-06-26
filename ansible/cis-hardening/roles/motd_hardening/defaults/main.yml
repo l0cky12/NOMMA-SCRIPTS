@@ -1,0 +1,46 @@
+---
+# roles/motd_hardening/defaults/main.yml
+#
+# Defaults for CIS 1.6.1 - Message of the Day (MOTD) configuration
+
+# Whether to deploy a MOTD file (true) or remove it entirely (false).
+# CIS allows either approach.  Deploying a warning banner is the
+# more common choice for organizations that need to assert legal
+# status and monitoring policies.
+motd_deploy: true
+
+# Path to the MOTD file
+motd_file: /etc/motd
+
+# Warning banner content.
+# Override this via group_vars/host_vars to match your site policy.
+# This default follows the DoD-style warning banner format adapted
+# for NOMMA - New Orleans Military & Maritime Academy.
+# 
+# Requirements per CIS 1.6.1:
+#   - Must include the name of the organization that owns the system
+#   - Must include any monitoring policies in place
+#   - Must NOT contain \m, \r, \s, \v or OS platform references
+motd_banner: |
+  -------------------------------------------------------------------------------
+  NOTICE TO USERS
+
+  This computer system is the property of NOMMA - New Orleans Military &
+  Maritime Academy.  It is for authorized use only.
+
+  Users (authorized or unauthorized) have no explicit or implicit expectation
+  of privacy.  Any and all uses of this system may be monitored and recorded.
+
+  Unauthorized or improper use of this system may result in administrative
+  disciplinary action and civil and criminal penalties.  By continuing to use
+  this system you indicate your awareness of and consent to these terms of use.
+
+  LOG OFF IMMEDIATELY if you do not agree to the conditions stated in this
+  warning.
+  -------------------------------------------------------------------------------
+
+# Whether to also remove the dynamic MOTD scripts that Debian/Ubuntu
+# run via /etc/update-motd.d/.  These scripts can print OS info
+# (e.g., kernel version, package update counts) which may leak
+# system details.  Set to true to disable them.
+motd_remove_dynamic_motd: false

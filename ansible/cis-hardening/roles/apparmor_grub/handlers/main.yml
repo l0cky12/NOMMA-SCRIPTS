@@ -1,0 +1,7 @@
+---
+# roles/apparmor_grub/handlers/main.yml
+
+- name: Update GRUB configuration
+  ansible.builtin.command: "{{ apparmor_grub_update_command }}"
+  register: grub_update_result
+  changed_when: true

@@ -1,0 +1,18 @@
+---
+# roles/su_restriction/defaults/main.yml
+#
+# CIS 5.3.3 - Ensure access to the su command is restricted
+# Restricts su to members of a dedicated group (typically 'sudo').
+
+# Group that is allowed to use the su command.
+# Default: sudo (the admin group already created by baseline_hardening).
+# CIS recommends creating a dedicated 'su' group, but using 'sudo'
+# is acceptable for environments where all admins already have sudo.
+su_allowed_group: sudo
+
+# Whether to create a dedicated 'su' group instead of reusing 'sudo'.
+# If true, a group named 'su' is created and su_allowed_group is set to it.
+su_create_dedicated_group: false
+
+# Path to the PAM configuration for su.
+su_pam_config: /etc/pam.d/su

@@ -1,0 +1,25 @@
+---
+# playbooks/cis-5.2.14-ssh-macs.yml
+#
+# CIS 5.2.14 - Ensure weak MAC algorithms are removed from sshd
+# Excludes MD5, 96-bit, RIPEMD, and ETM MACs vulnerable to
+# downgrade attacks and CVE-2023-48795 (Terrapin).
+#
+# Compliance Mapping:
+#   CIS:   5.2.14
+#   NIST:  SC-8, SC-13
+#   MITRE: T1557 (Adversary-in-the-Middle), T1565 (Data Manipulation)
+#
+# Usage:
+#   ansible-playbook -i inventory/hosts.yml playbooks/cis-5.2.14-ssh-macs.yml
+#
+# Or via site.yml with tags:
+#   ansible-playbook -i inventory/hosts.yml playbooks/site.yml --tags cis-5.2.14
+
+- name: CIS 5.2.14 - Remove weak MAC algorithms from sshd
+  hosts: linux_servers
+  become: true
+
+  roles:
+    - role: ssh_macs
+      tags: [cis, hardening, cis_ssh, cis-5.2.14, cis_5_2_14]

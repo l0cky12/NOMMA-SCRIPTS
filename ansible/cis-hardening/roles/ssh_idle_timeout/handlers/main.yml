@@ -1,0 +1,7 @@
+---
+# roles/ssh_idle_timeout/handlers/main.yml
+
+- name: Reload sshd
+  ansible.builtin.systemd:
+    name: ssh
+    state: reloaded

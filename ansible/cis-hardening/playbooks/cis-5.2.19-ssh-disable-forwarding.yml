@@ -1,0 +1,24 @@
+---
+# playbooks/cis-5.2.19-ssh-disable-forwarding.yml
+#
+# CIS 5.2.19 - Ensure sshd DisableForwarding is enabled
+# Disables all SSH forwarding (local, remote, X11, agent).
+#
+# Compliance Mapping:
+#   CIS:   5.2.19
+#   NIST:  AC-4, SC-8
+#   MITRE: T1572 (Protocol Tunneling), T1021.004 (Remote Services: SSH)
+#
+# Usage:
+#   ansible-playbook -i inventory/hosts.yml playbooks/cis-5.2.19-ssh-disable-forwarding.yml
+#
+# Or via site.yml with tags:
+#   ansible-playbook -i inventory/hosts.yml playbooks/site.yml --tags cis-5.2.19
+
+- name: CIS 5.2.19 - Ensure sshd DisableForwarding is enabled
+  hosts: linux_servers
+  become: true
+
+  roles:
+    - role: ssh_disable_forwarding
+      tags: [cis, hardening, cis_ssh, cis-5.2.19, cis_5_2_19]

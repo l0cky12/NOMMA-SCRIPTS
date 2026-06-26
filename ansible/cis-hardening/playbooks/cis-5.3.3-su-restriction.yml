@@ -1,0 +1,24 @@
+---
+# playbooks/cis-5.3.3-su-restriction.yml
+#
+# CIS 5.3.3 - Ensure access to the su command is restricted
+# Restricts su to members of the sudo group via pam_wheel.
+#
+# Compliance Mapping:
+#   CIS:   5.3.3
+#   NIST:  AC-6, IA-2
+#   MITRE: T1078 (Valid Accounts)
+#
+# Usage:
+#   ansible-playbook -i inventory/hosts.yml playbooks/cis-5.3.3-su-restriction.yml
+#
+# Or via site.yml with tags:
+#   ansible-playbook -i inventory/hosts.yml playbooks/site.yml --tags cis-5.3.3
+
+- name: CIS 5.3.3 - Restrict access to su command
+  hosts: linux_servers
+  become: true
+
+  roles:
+    - role: su_restriction
+      tags: [cis, hardening, cis_sudo, cis-5.3.3, cis_5_3_3]

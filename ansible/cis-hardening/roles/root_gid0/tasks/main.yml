@@ -1,0 +1,93 @@
+---
+# roles/root_gid0/tasks/main.yml
+#
+# CIS 6.1.1 - Ensure group root is the only GID 0 group
+#
+# Scans /etc/group for any group with GID 0 other than 'root'.
+# If found, either fails (default) or removes the unauthorized group.
+#
+# Idempotent: uses ansible.builtin.command for read, ansible.builtin.group
+# for removal. Safe to rerun.
+
+# ──────────────────────────────────────────────────────────
+# Pre-flight: verify /etc/group exists
+# ──────────────────────────────────────────────────────────
+
+- name: Check if /etc/group exists
+  ansible.builtin.stat:
+    path: "{{ root_gid0_group_file }}"
+  register: root_gid0_group_stat
+
+- name: Fail if /etc/group not found
+  ansible.builtin.assert:
+    that:
+      - root_gid0_group_stat.stat.exists
+    fail_msg: "/etc/group not found."
+    success_msg: "/etc/group found."
+
+# ──────────────────────────────────────────────────────────
+# Scan for unauthorized GID 0 groups
+# ──────────────────────────────────────────────────────────
+
+- name: Find all groups with GID 0
+  ansible.builtin.shell:
+    cmd: "awk -F: '($3 == 0) {print $1}' {{ root_gid0_group_file }}"
+  register: root_gid0_scan
+  changed_when: false
+
+- name: Identify unauthorized GID 0 groups
+  ansible.builtin.set_fact:
+    root_gid0_unauthorized: "{{ root_gid0_scan.stdout_lines | difference([root_gid0_expected_group]) }}"
+
+# ──────────────────────────────────────────────────────────
+# Remediate: remove unauthorized GID 0 groups
+# ──────────────────────────────────────────────────────────
+
+- name: Remove unauthorized GID 0 groups (auto-fix)
+  ansible.builtin.group:
+    name: "{{ item }}"
+    state: absent
+  loop: "{{ root_gid0_unauthorized }}"
+  when:
+    - root_gid0_unauthorized | length > 0
+    - root_gid0_auto_fix | bool
+
+- name: Fail on unauthorized GID 0 groups (no auto-fix)
+  ansible.builtin.assert:
+    that:
+      - root_gid0_unauthorized | length == 0
+    fail_msg: >-
+      Unauthorized GID 0 groups found: {{ root_gid0_unauthorized }}.
+      Set root_gid0_auto_fix: true to remove them automatically.
+    success_msg: "No unauthorized GID 0 groups."
+  when: not (root_gid0_auto_fix | bool)
+
+# ──────────────────────────────────────────────────────────
+# Verification
+# ──────────────────────────────────────────────────────────
+
+- name: Re-scan GID 0 groups after remediation
+  ansible.builtin.shell:
+    cmd: "awk -F: '($3 == 0) {print $1}' {{ root_gid0_group_file }}"
+  register: root_gid0_verify
+  changed_when: false
+
+- name: Verify only 'root' has GID 0
+  ansible.builtin.assert:
+    that:
+      - root_gid0_verify.stdout_lines | length == 1
+      - root_gid0_expected_group in root_gid0_verify.stdout_lines
+    fail_msg: >-
+      GID 0 groups found: {{ root_gid0_verify.stdout_lines }}.
+      Expected only '{{ root_gid0_expected_group }}'.
+    success_msg: "Only '{{ root_gid0_expected_group }}' has GID 0."
+
+- name: Report GID 0 status
+  ansible.builtin.debug:
+    msg: >-
+      GID 0 is restricted to '{{ root_gid0_expected_group }}'.
+      {% if root_gid0_unauthorized | length > 0 %}
+      Removed unauthorized groups: {{ root_gid0_unauthorized }}.
+      {% else %}
+      No unauthorized groups found.
+      {% endif %}

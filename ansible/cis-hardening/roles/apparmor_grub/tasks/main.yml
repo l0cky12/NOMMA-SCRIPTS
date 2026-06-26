@@ -1,0 +1,131 @@
+---
+# roles/apparmor_grub/tasks/main.yml
+#
+# CIS 1.3.1.2 - Ensure AppArmor is enabled in the bootloader configuration
+#
+# Adds apparmor=1 and security=apparmor to GRUB_CMDLINE_LINUX in
+# /etc/default/grub, then runs update-grub.
+#
+# Idempotent: only modifies the file when a required parameter is
+# missing.  Safe to rerun.
+
+# ──────────────────────────────────────────────────────────
+# Pre-flight: ensure grub config file exists
+# ──────────────────────────────────────────────────────────
+
+- name: Check if GRUB config file exists
+  ansible.builtin.stat:
+    path: "{{ apparmor_grub_config_file }}"
+  register: grub_config_stat
+
+- name: Fail if GRUB config file not found
+  ansible.builtin.assert:
+    that:
+      - grub_config_stat.stat.exists
+    fail_msg: >-
+      {{ apparmor_grub_config_file }} does not exist.
+      This role targets GRUB 2 on Debian/Ubuntu.  If your system
+      uses a different bootloader (LILO, systemd-boot, etc.), enact
+      equivalent settings per the CIS control guidance.
+    success_msg: "GRUB config file found: {{ apparmor_grub_config_file }}"
+
+# ──────────────────────────────────────────────────────────
+# Read current GRUB configuration
+# ──────────────────────────────────────────────────────────
+
+- name: Read current GRUB configuration
+  ansible.builtin.command: cat {{ apparmor_grub_config_file }}
+  register: grub_config_content
+  changed_when: false
+
+# ──────────────────────────────────────────────────────────
+# Ensure each required parameter is present in each GRUB_CMDLINE var
+# ──────────────────────────────────────────────────────────
+
+- name: Ensure required AppArmor parameters in GRUB command line
+  ansible.builtin.replace:
+    path: "{{ apparmor_grub_config_file }}"
+    regexp: '({{ item.0 }}=")(.*)(")'
+    replace: '\1\2 {{ item.1 }}\3'
+    backup: yes
+  when: "item.1 not in grub_config_content.stdout"
+  loop: "{{ apparmor_grub_cmdline_vars | product(apparmor_grub_required_params) | list }}"
+  notify: Update GRUB configuration
+
+  # item.0 = GRUB_CMDLINE variable name (e.g. GRUB_CMDLINE_LINUX)
+  # item.1 = parameter to add   (e.g. apparmor=1)
+  #
+  # The `when` condition checks the ORIGINAL file content.  If the
+  # parameter is already present (anywhere in the file), the task
+  # skips.  This is a conservative check -- if the param exists on
+  # a different GRUB_CMDLINE line we still skip, which is fine
+  # because the goal is "param exists in grub config".
+
+# ──────────────────────────────────────────────────────────
+# Handle case where GRUB_CMDLINE_LINUX line is missing entirely
+# ──────────────────────────────────────────────────────────
+
+- name: Check if GRUB_CMDLINE_LINUX line exists
+  ansible.builtin.shell: |
+    set -o pipefail
+    grep -E '^{{ item }}=' {{ apparmor_grub_config_file }} || echo "MISSING"
+  register: grub_cmdline_check
+  changed_when: false
+  loop: "{{ apparmor_grub_cmdline_vars }}"
+
+- name: Add GRUB_CMDLINE_LINUX line if missing
+  ansible.builtin.lineinfile:
+    path: "{{ apparmor_grub_config_file }}"
+    line: '{{ item.item }}="{{ apparmor_grub_required_params | join(" ") }}"'
+    backup: yes
+  when: "'MISSING' in item.stdout"
+  loop: "{{ grub_cmdline_check.results }}"
+  notify: Update GRUB configuration
+
+# ──────────────────────────────────────────────────────────
+# Flush handlers so update-grub runs before verification
+# ──────────────────────────────────────────────────────────
+
+- name: Flush handlers
+  ansible.builtin.meta: flush_handlers
+
+# ──────────────────────────────────────────────────────────
+# Verification: check /boot/grub/grub.cfg for required parameters
+# ──────────────────────────────────────────────────────────
+
+- name: Read generated grub.cfg
+  ansible.builtin.command: cat /boot/grub/grub.cfg
+  register: grub_cfg_content
+  changed_when: false
+
+- name: Verify apparmor=1 is in grub.cfg
+  ansible.builtin.assert:
+    that:
+      - "'apparmor=1' in grub_cfg_content.stdout"
+    fail_msg: >-
+      apparmor=1 NOT found in /boot/grub/grub.cfg.
+      Ensure update-grub ran successfully and /boot is mounted.
+    success_msg: "apparmor=1 confirmed in /boot/grub/grub.cfg"
+
+- name: Verify security=apparmor is in grub.cfg
+  ansible.builtin.assert:
+    that:
+      - "'security=apparmor' in grub_cfg_content.stdout"
+    fail_msg: >-
+      security=apparmor NOT found in /boot/grub/grub.cfg.
+      Ensure update-grub ran successfully and /boot is mounted.
+    success_msg: "security=apparmor confirmed in /boot/grub/grub.cfg"
+
+- name: Verify AppArmor is currently active
+  ansible.builtin.command: aa-status
+  register: apparmor_status
+  changed_when: false
+  failed_when: false
+
+- name: Report AppArmor runtime status
+  ansible.builtin.debug:
+    msg: >-
+      AppArmor runtime: {{ 'ACTIVE' if apparmor_status.rc == 0 else 'NOT ACTIVE (reboot required)' }}.
+      {% if apparmor_status.rc == 0 %}
+      Profiles loaded: {{ apparmor_status.stdout_lines[0] | default('unknown') }}
+      {% endif %}

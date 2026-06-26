@@ -1,0 +1,28 @@
+---
+# playbooks/cis-1.6.1-motd.yml
+#
+# CIS 1.6.1 - Ensure the message of the day (MOTD) is configured properly
+#
+# Deploys a sanitized MOTD warning banner for NOMMA or removes /etc/motd
+# entirely.  Ensures no OS platform information is leaked.
+#
+# Usage:
+#   ansible-playbook -i inventory/hosts.yml playbooks/cis-1.6.1-motd.yml --ask-become-pass
+#
+# Check mode:
+#   ansible-playbook -i inventory/hosts.yml playbooks/cis-1.6.1-motd.yml --check --ask-become-pass
+#
+# To remove the MOTD instead of deploying a banner:
+#   ansible-playbook -i inventory/hosts.yml playbooks/cis-1.6.1-motd.yml \
+#     -e "motd_deploy=false" --ask-become-pass
+#
+# To also disable dynamic MOTD scripts on Debian/Ubuntu:
+#   ansible-playbook -i inventory/hosts.yml playbooks/cis-1.6.1-motd.yml \
+#     -e "motd_remove_dynamic_motd=true" --ask-become-pass
+
+- name: CIS 1.6.1 - MOTD hardening
+  hosts: linux_servers
+  become: true
+
+  roles:
+    - motd_hardening

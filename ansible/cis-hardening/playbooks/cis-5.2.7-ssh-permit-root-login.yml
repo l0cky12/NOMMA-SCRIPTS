@@ -1,0 +1,24 @@
+---
+# playbooks/cis-5.2.7-ssh-permit-root-login.yml
+#
+# CIS 5.2.7 - Ensure sshd PermitRootLogin is disabled
+# Disables direct root login via SSH, forcing sudo escalation.
+#
+# Compliance Mapping:
+#   CIS:   5.2.7
+#   NIST:  AC-6, IA-2
+#   MITRE: T1078.003 (Local Accounts: Root)
+#
+# Usage:
+#   ansible-playbook -i inventory/hosts.yml playbooks/cis-5.2.7-ssh-permit-root-login.yml
+#
+# Or via site.yml with tags:
+#   ansible-playbook -i inventory/hosts.yml playbooks/site.yml --tags cis-5.2.7
+
+- name: CIS 5.2.7 - Disable SSH root login
+  hosts: linux_servers
+  become: true
+
+  roles:
+    - role: ssh_permit_root_login
+      tags: [cis, hardening, cis_ssh, cis-5.2.7, cis_5_2_7]

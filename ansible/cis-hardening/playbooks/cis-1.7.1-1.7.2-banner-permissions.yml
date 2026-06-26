@@ -1,0 +1,25 @@
+---
+# playbooks/cis-1.7.1-1.7.2-banner-permissions.yml
+#
+# CIS 1.7.1 - Ensure access to /etc/issue is configured
+# CIS 1.7.2 - Ensure access to /etc/issue.net is configured
+#
+# Sets root:root ownership and mode 0644 on both /etc/issue and
+# /etc/issue.net.  Resolves symlinks via readlink -e per CIS.
+#
+# Usage:
+#   ansible-playbook -i inventory/hosts.yml playbooks/cis-1.7.1-1.7.2-banner-permissions.yml --ask-become-pass
+#
+# Check mode:
+#   ansible-playbook -i inventory/hosts.yml playbooks/cis-1.7.1-1.7.2-banner-permissions.yml --check --ask-become-pass
+#
+# To use a stricter mode (e.g., 0600):
+#   ansible-playbook -i inventory/hosts.yml playbooks/cis-1.7.1-1.7.2-banner-permissions.yml \
+#     -e "banner_perms_mode=0600" --ask-become-pass
+
+- name: CIS 1.7.1 + 1.7.2 - Permissions on login banner files
+  hosts: linux_servers
+  become: true
+
+  roles:
+    - banner_permissions

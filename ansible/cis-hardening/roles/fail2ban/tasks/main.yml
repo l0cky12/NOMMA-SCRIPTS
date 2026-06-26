@@ -1,0 +1,20 @@
+---
+- name: Install Fail2Ban SSH jail configuration
+  ansible.builtin.template:
+    src: jail.local.j2
+    dest: /etc/fail2ban/jail.local
+    owner: root
+    group: root
+    mode: "0644"
+    backup: true
+  notify: Restart fail2ban
+
+- name: Validate Fail2Ban configuration
+  ansible.builtin.command: fail2ban-client -t
+  changed_when: false
+
+- name: Ensure Fail2Ban is enabled and running
+  ansible.builtin.service:
+    name: fail2ban
+    state: started
+    enabled: true

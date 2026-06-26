@@ -1,0 +1,17 @@
+---
+# roles/ssh_idle_timeout/defaults/main.yml
+#
+# CIS 5.2.12 - Ensure SSH Idle Timeout Interval is configured
+# Sets ClientAliveInterval and ClientAliveCountMax to enforce
+# automatic disconnection of idle SSH sessions.
+
+# Number of seconds between alive probes sent to the client.
+# 15 seconds per CIS remediation example. Consult site policy.
+ssh_client_alive_interval: 15
+
+# Number of alive probes without response before disconnecting.
+# 3 per CIS remediation example (15s x 3 = 45s total timeout).
+ssh_client_alive_count_max: 3
+
+# Path to the main sshd configuration file.
+ssh_idle_timeout_sshd_config: /etc/ssh/sshd_config

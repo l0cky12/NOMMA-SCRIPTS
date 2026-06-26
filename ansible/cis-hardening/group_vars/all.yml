@@ -1,0 +1,62 @@
+---
+# Global variables for the NOMMA offline Root CA build.
+# Secrets are intentionally not stored here. Put passphrases and password hashes
+# in group_vars/vault.yml encrypted with Ansible Vault.
+
+admin_user: ldecareaux
+admin_group: ldecareaux
+admin_cert_dir: "/home/{{ admin_user }}/cert"
+ssh_public_key_path: /home/liam/.ssh/id_rsa_work.pub
+
+required_packages:
+  - openssl
+  - ca-certificates
+  - fail2ban
+  - ufw
+  - sudo
+  - python3
+  - python3-apt
+
+root_ca_base_dir: /opt/nomma-root-ca
+root_ca_private_dir: "{{ root_ca_base_dir }}/private"
+root_ca_key_path: "{{ root_ca_private_dir }}/nomma-root-ca.key.pem"
+root_ca_cert_path: "{{ root_ca_base_dir }}/certs/nomma-root-ca.cert.pem"
+root_ca_openssl_cnf: "{{ root_ca_base_dir }}/openssl.cnf"
+root_ca_crl_path: "{{ root_ca_base_dir }}/crl/nomma-root-ca.crl.pem"
+root_ca_days: 7300
+root_ca_default_md: sha256
+root_ca_key_algorithm: rsa
+root_ca_rsa_bits: 4096
+
+intermediate_ca_base_dir: "{{ root_ca_base_dir }}/intermediate"
+intermediate_ca_private_dir: "{{ intermediate_ca_base_dir }}/private"
+intermediate_ca_key_path: "{{ intermediate_ca_private_dir }}/nomma-issuing-ca.key.pem"
+intermediate_ca_csr_path: "{{ intermediate_ca_base_dir }}/csr/nomma-issuing-ca.csr.pem"
+intermediate_ca_cert_path: "{{ intermediate_ca_base_dir }}/certs/nomma-issuing-ca.cert.pem"
+intermediate_ca_chain_path: "{{ intermediate_ca_base_dir }}/certs/nomma-ca-chain.cert.pem"
+intermediate_ca_openssl_cnf: "{{ intermediate_ca_base_dir }}/openssl.cnf"
+intermediate_ca_days: 3650
+
+pki_country: US
+pki_state: Louisiana
+pki_locality: New Orleans
+pki_organization: NOMMA -- New Orleans Military & Maritime Academy
+pki_org_unit: IT Infrastructure
+root_ca_common_name: NOMMA Offline Root CA
+intermediate_ca_common_name: NOMMA Issuing CA
+
+pki_domains:
+  - nomma.tech
+  - nomma.lan
+
+future_server_cert_examples:
+  - server.nomma.tech
+  - server.nomma.lan
+  - pki.nomma.tech
+  - pki.nomma.lan
+
+ufw_allow_ssh: true
+fail2ban_sshd_maxretry: 5
+fail2ban_sshd_findtime: 60
+fail2ban_sshd_bantime: 1h
+fail2ban_backend: systemd

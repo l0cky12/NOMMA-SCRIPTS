@@ -1,0 +1,24 @@
+---
+# playbooks/cis-5.2.15-ssh-maxstartups.yml
+#
+# CIS 5.2.15 - Ensure SSH MaxStartups is configured
+# Rate-limits unauthenticated SSH connections to prevent DoS.
+#
+# Compliance Mapping:
+#   CIS:   5.2.15
+#   NIST:  SC-5, SC-7
+#   MITRE: T1499 (Endpoint Denial of Service)
+#
+# Usage:
+#   ansible-playbook -i inventory/hosts.yml playbooks/cis-5.2.15-ssh-maxstartups.yml
+#
+# Or via site.yml with tags:
+#   ansible-playbook -i inventory/hosts.yml playbooks/site.yml --tags cis-5.2.15
+
+- name: CIS 5.2.15 - Configure SSH MaxStartups rate limiting
+  hosts: linux_servers
+  become: true
+
+  roles:
+    - role: ssh_maxstartups
+      tags: [cis, hardening, cis_ssh, cis-5.2.15, cis_5_2_15]

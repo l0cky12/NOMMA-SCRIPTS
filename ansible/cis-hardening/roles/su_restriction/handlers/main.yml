@@ -1,0 +1,6 @@
+---
+# roles/su_restriction/handlers/main.yml
+
+- name: Clear su restriction note
+  ansible.builtin.debug:
+    msg: "PAM su config updated. su access is now restricted to the configured group."

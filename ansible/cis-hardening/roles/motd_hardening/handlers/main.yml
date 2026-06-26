@@ -1,0 +1,6 @@
+---
+# roles/motd_hardening/handlers/main.yml
+
+- name: MOTD changed
+  ansible.builtin.debug:
+    msg: "MOTD has been updated. Users will see the new banner on next login."

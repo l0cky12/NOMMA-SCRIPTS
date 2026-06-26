@@ -1,0 +1,27 @@
+---
+# roles/motd_permissions/defaults/main.yml
+#
+# Defaults for CIS 1.6.4 - Ensure permissions on /etc/motd are configured
+
+# Path to the MOTD file (resolves symlinks at runtime)
+motd_perms_file: /etc/motd
+
+# Whether to enforce the file (true) or remove it (false).
+# CIS accepts either: correct permissions OR absent.
+motd_perms_ensure_present: true
+
+# Owner and group for /etc/motd
+motd_perms_owner: root
+motd_perms_group: root
+
+# File mode — CIS 1.6.4 accepts any of: 0644, 0640, 0600, 0400
+# 0644 is the most common choice (readable by all, writable by root only)
+motd_perms_mode: "0644"
+
+# Acceptable modes per CIS 1.6.4 check:
+#   stat -L "%n %a %u %U %g %G" /etc/motd -> r:0 root 0 root && r:644|640|600|400
+motd_perms_acceptable_modes:
+  - "0644"
+  - "0640"
+  - "0600"
+  - "0400"

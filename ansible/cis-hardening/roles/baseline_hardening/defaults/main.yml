@@ -1,0 +1,55 @@
+---
+# roles/baseline_hardening/defaults/main.yml
+#
+# Defaults for baseline package install, user creation, sudo access.
+
+# ── Admin users ──────────────────────────────────────────────
+admin_users:
+  - username: dcooper
+    shell: /bin/bash
+    ssh_key: ""          # no SSH key deployed for dcooper
+  - username: ldecareaux
+    shell: /bin/bash
+    ssh_key: "{{ lookup('ansible.builtin.file', '/home/liam/.ssh/id_rsa_work.pub') }}"
+
+# ── Password ────────────────────────────────────────────────
+# Default is the literal string "password" hashed with SHA-512.
+# In production, override via Ansible Vault:
+#   vault_admin_password_hash: "$6$..."
+admin_password_hash: "{{ vault_admin_password_hash | default('password' | password_hash('sha512')) }}"
+
+# ── Packages ────────────────────────────────────────────────
+# Debian/Ubuntu package names.  Some requested tools are provided
+# by a different package name on this platform:
+#   nslookup, dig, host  -> bind9-dnsutils
+#   ss, ip               -> iproute2
+#   sha256sum            -> coreutils (pre-installed, listed for clarity)
+#   sudo                 -> sudo
+baseline_packages:
+  - apparmor
+  - fail2ban
+  - net-tools
+  - ufw
+  - htop
+  - iproute2          # provides: ip, ss
+  - wget
+  - curl
+  - neovim
+  - sudo
+  - bind9-dnsutils    # provides: nslookup, dig, host
+  - tcpdump
+  - traceroute
+  - unattended-upgrades
+  - needrestart
+  - rsyslog
+  - auditd
+  - coreutils          # provides: sha256sum (normally pre-installed)
+  - tree
+  - lsof
+  - chrony            # NTP time sync (replaces ntp/systemd-timesyncd)
+  - libpam-pwquality  # CIS 5.4.1 - password quality enforcement
+
+# ── Packages to remove ───────────────────────────────────────
+# Insecure or unnecessary clients removed during baseline.
+baseline_packages_remove:
+  - telnet            # telnet client — sends credentials in cleartext

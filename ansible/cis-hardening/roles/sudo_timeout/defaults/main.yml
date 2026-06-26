@@ -1,0 +1,12 @@
+---
+# roles/sudo_timeout/defaults/main.yml
+#
+# CIS 5.3.2 - Ensure sudo authentication timeout is configured correctly
+# Sets the timestamp_timeout for sudo credential caching.
+
+# Number of minutes before sudo credentials expire.
+# CIS recommends 15 minutes or less. Default: 15.
+sudo_timestamp_timeout: 15
+
+# Path to the sudoers drop-in directory.
+sudo_timeout_sudoers_d: /etc/sudoers.d

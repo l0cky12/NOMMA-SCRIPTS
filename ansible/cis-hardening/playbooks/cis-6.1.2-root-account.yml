@@ -1,0 +1,28 @@
+---
+# playbooks/cis-6.1.2-root-account.yml
+#
+# CIS 6.1.2 - Ensure root account access is controlled
+# Sets a random root password and locks the account from direct login.
+#
+# Compliance Mapping:
+#   CIS:   6.1.2
+#   NIST:  AC-6, IA-2, IA-5
+#   MITRE: T1078.003 (Local Accounts: Root)
+#
+# Usage:
+#   ansible-playbook -i inventory/hosts.yml playbooks/cis-6.1.2-root-account.yml
+#
+# Or via site.yml with tags:
+#   ansible-playbook -i inventory/hosts.yml playbooks/site.yml --tags cis-6.1.2
+#
+# WARNING: This generates a random root password and LOCKS the root account.
+# The passphrase is displayed once during playbook output — copy it immediately.
+# To recover root console access: boot to single-user mode or use sudo.
+
+- name: CIS 6.1.2 - Control root account access
+  hosts: linux_servers
+  become: true
+
+  roles:
+    - role: root_account
+      tags: [cis, hardening, cis_accounts, cis-6.1.2, cis_6_1_2]

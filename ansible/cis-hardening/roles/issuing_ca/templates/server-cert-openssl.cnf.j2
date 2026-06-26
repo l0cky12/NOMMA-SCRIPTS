@@ -1,0 +1,26 @@
+# Example OpenSSL CSR config for future NOMMA server certificates.
+# Edit CN and DNS entries per server before generating a CSR.
+
+[ req ]
+default_bits       = 2048
+default_md         = sha256
+prompt             = no
+distinguished_name = dn
+req_extensions     = req_ext
+
+[ dn ]
+C  = {{ pki_country }}
+ST = {{ pki_state }}
+L  = {{ pki_locality }}
+O  = {{ pki_organization }}
+OU = {{ pki_org_unit }}
+CN = server.nomma.tech
+
+[ req_ext ]
+subjectAltName = @alt_names
+
+[ alt_names ]
+DNS.1 = server.nomma.tech
+DNS.2 = server.nomma.lan
+DNS.3 = pki.nomma.tech
+DNS.4 = pki.nomma.lan

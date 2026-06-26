@@ -1,0 +1,11 @@
+---
+# roles/ssh_disable_forwarding/defaults/main.yml
+#
+# CIS 5.2.19 - Ensure sshd DisableForwarding is enabled
+# Disables all SSH forwarding (local, remote, X11, agent).
+
+# Whether to disable all forwarding. true = disable (secure).
+ssh_disable_forwarding: true
+
+# Path to the main sshd configuration file.
+ssh_disable_forwarding_sshd_config: /etc/ssh/sshd_config

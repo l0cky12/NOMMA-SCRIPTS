@@ -1,0 +1,15 @@
+---
+# roles/ufw/defaults/main.yml
+#
+# Defaults for CIS - Ensure ufw is installed, enabled, and running
+
+# Allow SSH through UFW before enabling the firewall.
+# Whether to allow SSH through UFW before enabling (prevents lockout).
+ufw_allow_ssh: true
+
+# Whether to remove nftables package entirely (prevents conflicts with ufw).
+# If false, nftables is stopped and disabled but the package remains installed.
+ufw_remove_nftables: true
+
+# SSH port to allow (used if allow by port instead of by name)
+ufw_ssh_port: 22

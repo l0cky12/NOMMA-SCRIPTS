@@ -1,0 +1,79 @@
+---
+# roles/sudo_timeout/tasks/main.yml
+#
+# CIS 5.3.2 - Ensure sudo authentication timeout is configured correctly
+#
+# Sets the Defaults timestamp_timeout directive in a sudoers
+# drop-in file. This controls how long sudo caches credentials
+# before requiring re-authentication. CIS recommends 15 minutes
+# or less to reduce the window for session hijacking.
+#
+# Idempotent: uses ansible.builtin.copy (content-based).
+# Safe to rerun.
+
+# ──────────────────────────────────────────────────────────
+# Pre-flight: verify sudo is installed
+# ──────────────────────────────────────────────────────────
+
+- name: Check if sudo is installed
+  ansible.builtin.command: dpkg -l sudo
+  register: sudo_timeout_pkg_check
+  changed_when: false
+  failed_when: false
+
+- name: Fail if sudo is not installed
+  ansible.builtin.assert:
+    that:
+      - sudo_timeout_pkg_check.rc == 0
+    fail_msg: >-
+      sudo package is not installed. Install it before applying this role.
+    success_msg: "sudo is installed."
+
+# ──────────────────────────────────────────────────────────
+# Configure sudo timestamp_timeout
+# ──────────────────────────────────────────────────────────
+
+- name: Deploy sudoers drop-in for timestamp_timeout directive
+  ansible.builtin.copy:
+    dest: "{{ sudo_timeout_sudoers_d }}/sudo-timeout"
+    content: "Defaults timestamp_timeout={{ sudo_timestamp_timeout }}\n"
+    owner: root
+    group: root
+    mode: "0440"
+    validate: 'visudo -cf %s'
+
+# ──────────────────────────────────────────────────────────
+# Verification
+# ──────────────────────────────────────────────────────────
+
+- name: Read sudoers drop-in for verification
+  ansible.builtin.command: cat {{ sudo_timeout_sudoers_d }}/sudo-timeout
+  register: sudo_timeout_dropin_check
+  changed_when: false
+  failed_when: false
+
+- name: Verify timestamp_timeout directive is set
+  ansible.builtin.assert:
+    that:
+      - "'timestamp_timeout' in sudo_timeout_dropin_check.stdout"
+      - "sudo_timestamp_timeout | string in sudo_timeout_dropin_check.stdout"
+    fail_msg: >-
+      timestamp_timeout not set to {{ sudo_timestamp_timeout }} in
+      {{ sudo_timeout_sudoers_d }}/sudo-timeout.
+      Run: cat {{ sudo_timeout_sudoers_d }}/sudo-timeout
+    success_msg: "timestamp_timeout set to {{ sudo_timestamp_timeout }} minutes."
+
+- name: Verify timeout is 15 minutes or less per CIS
+  ansible.builtin.assert:
+    that:
+      - sudo_timestamp_timeout <= 15
+    fail_msg: >-
+      timestamp_timeout is {{ sudo_timestamp_timeout }}, exceeds CIS max of 15 minutes.
+    success_msg: "timestamp_timeout ({{ sudo_timestamp_timeout }}m) is within CIS limit."
+  when: sudo_timestamp_timeout <= 15
+
+- name: Report sudo timeout status
+  ansible.builtin.debug:
+    msg: >-
+      sudo authentication timeout set to {{ sudo_timestamp_timeout }} minutes
+      (credentials expire after {{ sudo_timestamp_timeout }}m of inactivity).

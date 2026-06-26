@@ -1,0 +1,105 @@
+---
+# roles/sudo_logfile/tasks/main.yml
+#
+# CIS 5.3.1 - Ensure sudo log file exists
+#
+# Configures a dedicated sudo log file by adding the Defaults
+# logfile directive to /etc/sudoers.d/ via a drop-in file.
+# This ensures all sudo command activity is logged to a
+# central location for auditing.
+#
+# Idempotent: uses ansible.builtin.copy (content-based).
+# Safe to rerun.
+
+# ──────────────────────────────────────────────────────────
+# Pre-flight: verify sudo is installed
+# ──────────────────────────────────────────────────────────
+
+- name: Check if sudo is installed
+  ansible.builtin.command: dpkg -l sudo
+  register: sudo_logfile_pkg_check
+  changed_when: false
+  failed_when: false
+
+- name: Fail if sudo is not installed
+  ansible.builtin.assert:
+    that:
+      - sudo_logfile_pkg_check.rc == 0
+    fail_msg: >-
+      sudo package is not installed. Install it before applying this role.
+    success_msg: "sudo is installed."
+
+# ──────────────────────────────────────────────────────────
+# Create the sudo log file
+# ──────────────────────────────────────────────────────────
+
+- name: Ensure sudo log file exists with correct permissions
+  ansible.builtin.file:
+    path: "{{ sudo_logfile_path }}"
+    state: touch
+    owner: "{{ sudo_logfile_owner }}"
+    group: "{{ sudo_logfile_group }}"
+    mode: "{{ sudo_logfile_mode }}"
+
+# ──────────────────────────────────────────────────────────
+# Configure sudo to use the log file
+# ──────────────────────────────────────────────────────────
+
+- name: Deploy sudoers drop-in for logfile directive
+  ansible.builtin.copy:
+    dest: "{{ sudo_logfile_sudoers_d }}/sudo-logfile"
+    content: "Defaults logfile=\"{{ sudo_logfile_path }}\"\n"
+    owner: root
+    group: root
+    mode: "0440"
+    validate: 'visudo -cf %s'
+
+# ──────────────────────────────────────────────────────────
+# Verification
+# ──────────────────────────────────────────────────────────
+
+- name: Verify sudo log file exists
+  ansible.builtin.stat:
+    path: "{{ sudo_logfile_path }}"
+  register: sudo_logfile_stat
+
+- name: Verify sudo log file permissions
+  ansible.builtin.assert:
+    that:
+      - sudo_logfile_stat.stat.exists
+      - sudo_logfile_stat.stat.pw_name == sudo_logfile_owner
+      - sudo_logfile_stat.stat.gr_name == sudo_logfile_group
+      - sudo_logfile_stat.stat.mode == sudo_logfile_mode
+    fail_msg: >-
+      sudo log file at {{ sudo_logfile_path }} has incorrect attributes.
+      owner={{ sudo_logfile_stat.stat.pw_name }}, group={{ sudo_logfile_stat.stat.gr_name }},
+      mode={{ sudo_logfile_stat.stat.mode }}
+    success_msg: "sudo log file exists with correct permissions."
+
+- name: Verify sudo logfile directive is active
+  ansible.builtin.command: sudo -V
+  register: sudo_logfile_version
+  changed_when: false
+  failed_when: false
+
+- name: Read sudoers drop-in for verification
+  ansible.builtin.command: cat {{ sudo_logfile_sudoers_d }}/sudo-logfile
+  register: sudo_logfile_dropin_check
+  changed_when: false
+  failed_when: false
+
+- name: Verify logfile directive is set
+  ansible.builtin.assert:
+    that:
+      - "sudo_logfile_path in sudo_logfile_dropin_check.stdout"
+      - "'Defaults logfile' in sudo_logfile_dropin_check.stdout"
+    fail_msg: >-
+      logfile directive not found in {{ sudo_logfile_sudoers_d }}/sudo-logfile.
+      Run: cat {{ sudo_logfile_sudoers_d }}/sudo-logfile
+    success_msg: "sudo logfile directive is configured."
+
+- name: Report sudo logfile status
+  ansible.builtin.debug:
+    msg: >-
+      sudo log file configured at {{ sudo_logfile_path }}
+      ({{ sudo_logfile_mode }}, {{ sudo_logfile_owner }}:{{ sudo_logfile_group }}).

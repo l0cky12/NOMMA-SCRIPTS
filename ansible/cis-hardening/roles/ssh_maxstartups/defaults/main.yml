@@ -1,0 +1,16 @@
+---
+# roles/ssh_maxstartups/defaults/main.yml
+#
+# CIS 5.2.15 - Ensure SSH MaxStartups is configured
+# Rate-limits unauthenticated SSH connections to prevent DoS.
+
+# MaxStartups value: start:drop_rate:full_drop
+# 10:30:60 means:
+#   - Allow up to 10 concurrent unauthenticated connections
+#   - Drop 30% of new connections beyond 10
+#   - Drop 100% of new connections at 60
+# Per CIS remediation example. Consult site policy.
+ssh_maxstartups_value: "10:30:60"
+
+# Path to the main sshd configuration file.
+ssh_maxstartups_sshd_config: /etc/ssh/sshd_config

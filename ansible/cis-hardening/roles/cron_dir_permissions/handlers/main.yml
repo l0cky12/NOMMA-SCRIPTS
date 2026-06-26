@@ -1,0 +1,4 @@
+---
+# roles/cron_dir_permissions/handlers/main.yml
+#
+# No handlers needed — no service restarts for directory permission changes.

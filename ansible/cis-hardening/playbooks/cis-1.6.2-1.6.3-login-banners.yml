@@ -1,0 +1,31 @@
+---
+# playbooks/cis-1.6.2-1.6.3-login-banners.yml
+#
+# CIS 1.6.2 - Ensure local login warning banner is configured (/etc/issue)
+# CIS 1.6.3 - Ensure remote login warning banner is configured (/etc/issue.net)
+#
+# Deploys sanitized pre-login warning banners to /etc/issue (local
+# console) and /etc/issue.net (remote SSH), or removes both.
+# Configures sshd Banner directive to display /etc/issue.net on
+# SSH login.
+#
+# Usage:
+#   ansible-playbook -i inventory/hosts.yml playbooks/cis-1.6.2-1.6.3-login-banners.yml --ask-become-pass
+#
+# Check mode:
+#   ansible-playbook -i inventory/hosts.yml playbooks/cis-1.6.2-1.6.3-login-banners.yml --check --ask-become-pass
+#
+# To remove banners instead of deploying:
+#   ansible-playbook -i inventory/hosts.yml playbooks/cis-1.6.2-1.6.3-login-banners.yml \
+#     -e "login_banner_deploy=false" --ask-become-pass
+#
+# To skip sshd Banner configuration:
+#   ansible-playbook -i inventory/hosts.yml playbooks/cis-1.6.2-1.6.3-login-banners.yml \
+#     -e "login_banner_configure_ssh=false" --ask-become-pass
+
+- name: CIS 1.6.2 + 1.6.3 - Login warning banners
+  hosts: linux_servers
+  become: true
+
+  roles:
+    - login_banner

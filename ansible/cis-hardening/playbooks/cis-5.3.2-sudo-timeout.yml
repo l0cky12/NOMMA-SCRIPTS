@@ -1,0 +1,24 @@
+---
+# playbooks/cis-5.3.2-sudo-timeout.yml
+#
+# CIS 5.3.2 - Ensure sudo authentication timeout is configured correctly
+# Sets sudo timestamp_timeout to 15 minutes or less.
+#
+# Compliance Mapping:
+#   CIS:   5.3.2
+#   NIST:  AC-11, IA-11
+#   MITRE: T1078 (Valid Accounts)
+#
+# Usage:
+#   ansible-playbook -i inventory/hosts.yml playbooks/cis-5.3.2-sudo-timeout.yml
+#
+# Or via site.yml with tags:
+#   ansible-playbook -i inventory/hosts.yml playbooks/site.yml --tags cis-5.3.2
+
+- name: CIS 5.3.2 - Configure sudo authentication timeout
+  hosts: linux_servers
+  become: true
+
+  roles:
+    - role: sudo_timeout
+      tags: [cis, hardening, cis_sudo, cis-5.3.2, cis_5_3_2]

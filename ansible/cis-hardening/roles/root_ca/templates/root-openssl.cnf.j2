@@ -1,0 +1,63 @@
+# Managed by Ansible. NOMMA Offline Root CA OpenSSL configuration.
+# Root CA is intentionally offline and used only to sign Intermediate CAs.
+
+[ ca ]
+default_ca = CA_default
+
+[ CA_default ]
+dir               = {{ root_ca_base_dir }}
+certs             = $dir/certs
+crl_dir           = $dir/crl
+new_certs_dir     = $dir/newcerts
+database          = $dir/index.txt
+serial            = $dir/serial
+crlnumber         = $dir/crlnumber
+RANDFILE          = $dir/private/.rand
+private_key       = {{ root_ca_key_path }}
+certificate       = {{ root_ca_cert_path }}
+crl               = {{ root_ca_crl_path }}
+default_md        = {{ root_ca_default_md }}
+default_days      = {{ intermediate_ca_days }}
+default_crl_days  = 365
+preserve          = no
+policy            = policy_strict
+copy_extensions   = copy
+unique_subject    = no
+
+[ policy_strict ]
+countryName             = match
+stateOrProvinceName     = match
+organizationName        = match
+organizationalUnitName  = optional
+commonName              = supplied
+emailAddress            = optional
+
+[ req ]
+default_bits        = {{ root_ca_rsa_bits }}
+default_md          = {{ root_ca_default_md }}
+distinguished_name  = req_distinguished_name
+string_mask         = utf8only
+prompt              = no
+x509_extensions     = v3_ca
+
+[ req_distinguished_name ]
+C  = {{ pki_country }}
+ST = {{ pki_state }}
+L  = {{ pki_locality }}
+O  = {{ pki_organization }}
+OU = {{ pki_org_unit }}
+CN = {{ root_ca_common_name }}
+
+[ v3_ca ]
+subjectKeyIdentifier = hash
+authorityKeyIdentifier = keyid:always,issuer
+basicConstraints = critical, CA:true
+keyUsage = critical, digitalSignature, cRLSign, keyCertSign
+
+[ v3_intermediate_ca ]
+subjectKeyIdentifier = hash
+authorityKeyIdentifier = keyid:always,issuer
+basicConstraints = critical, CA:true, pathlen:0
+keyUsage = critical, digitalSignature, cRLSign, keyCertSign
+crlDistributionPoints = URI:http://pki.nomma.tech/crl/nomma-root-ca.crl.pem
+authorityInfoAccess = OCSP;URI:http://ocsp.nomma.tech/, caIssuers;URI:http://pki.nomma.tech/certs/nomma-root-ca.cert.pem

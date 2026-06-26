@@ -1,0 +1,106 @@
+---
+# roles/ssh_disable_forwarding/tasks/main.yml
+#
+# CIS 5.2.19 - Ensure sshd DisableForwarding is enabled
+#
+# Sets DisableForwarding yes in sshd_config above any Include/Match
+# entries. This disables all forwarding features:
+#   - Local port forwarding (-L)
+#   - Remote port forwarding (-R)
+#   - X11 forwarding (-X)
+#   - Agent forwarding (-A)
+# First occurrence takes precedence in sshd_config.
+#
+# Idempotent: uses ansible.builtin.lineinfile with regexp match.
+# Safe to rerun.
+
+# ──────────────────────────────────────────────────────────
+# Pre-flight: verify sshd_config exists
+# ──────────────────────────────────────────────────────────
+
+- name: Check if sshd_config exists
+  ansible.builtin.stat:
+    path: "{{ ssh_disable_forwarding_sshd_config }}"
+  register: ssh_disable_forwarding_sshd_stat
+
+- name: Fail if sshd_config not found
+  ansible.builtin.assert:
+    that:
+      - ssh_disable_forwarding_sshd_stat.stat.exists
+    fail_msg: >-
+      {{ ssh_disable_forwarding_sshd_config }} not found. Ensure openssh-server is installed.
+    success_msg: "sshd_config found at {{ ssh_disable_forwarding_sshd_config }}."
+
+# ──────────────────────────────────────────────────────────
+# Configure DisableForwarding (above Include/Match)
+# ──────────────────────────────────────────────────────────
+
+- name: Set DisableForwarding in sshd_config
+  ansible.builtin.lineinfile:
+    path: "{{ ssh_disable_forwarding_sshd_config }}"
+    regexp: '^\s*#?\s*DisableForwarding\s+.*$'
+    line: "DisableForwarding {{ 'yes' if ssh_disable_forwarding | bool else 'no' }}"
+    insertbefore: '^\s*(Include|Match)\s'
+    state: present
+    backup: yes
+    validate: 'sshd -t -f %s'
+  notify: Reload sshd
+
+# ──────────────────────────────────────────────────────────
+# Flush handlers so sshd reloads before verification
+# ──────────────────────────────────────────────────────────
+
+- name: Flush handlers
+  ansible.builtin.meta: flush_handlers
+
+# ──────────────────────────────────────────────────────────
+# Verification
+# ──────────────────────────────────────────────────────────
+
+- name: Read sshd_config for DisableForwarding verification
+  ansible.builtin.command: grep -i '^DisableForwarding' {{ ssh_disable_forwarding_sshd_config }}
+  register: ssh_disable_forwarding_check
+  changed_when: false
+  failed_when: false
+
+- name: Verify DisableForwarding is set
+  ansible.builtin.assert:
+    that:
+      - "'DisableForwarding' in ssh_disable_forwarding_check.stdout"
+    fail_msg: >-
+      DisableForwarding directive not found in {{ ssh_disable_forwarding_sshd_config }}.
+      Run: grep -i '^DisableForwarding' {{ ssh_disable_forwarding_sshd_config }}
+    success_msg: "DisableForwarding directive is present in sshd_config."
+
+- name: Verify DisableForwarding is set to yes
+  ansible.builtin.assert:
+    that:
+      - "ssh_disable_forwarding_check.stdout | lower is search('disableforwarding\\s+yes')"
+    fail_msg: >-
+      DisableForwarding is not set to 'yes' in {{ ssh_disable_forwarding_sshd_config }}.
+      Current value: {{ ssh_disable_forwarding_check.stdout }}
+    success_msg: "DisableForwarding is set to 'yes'."
+  when: ssh_disable_forwarding | bool
+
+- name: Verify effective SSH config via sshd -T
+  ansible.builtin.command: sshd -T -f {{ ssh_disable_forwarding_sshd_config }}
+  register: ssh_disable_forwarding_effective
+  changed_when: false
+  failed_when: false
+
+- name: Verify effective DisableForwarding matches configured value
+  ansible.builtin.assert:
+    that:
+      - "'disableforwarding yes' in ssh_disable_forwarding_effective.stdout | lower"
+    fail_msg: >-
+      Effective DisableForwarding does not match 'yes'.
+      Run: sshd -T -f {{ ssh_disable_forwarding_sshd_config }} | grep -i disableforwarding
+    success_msg: "Effective DisableForwarding is 'yes'."
+  when:
+    - ssh_disable_forwarding_effective.rc == 0
+    - ssh_disable_forwarding | bool
+
+- name: Report SSH DisableForwarding status
+  ansible.builtin.debug:
+    msg: >-
+      SSH DisableForwarding is {{ 'enabled (all forwarding disabled)' if ssh_disable_forwarding | bool else 'disabled (forwarding permitted)' }}.

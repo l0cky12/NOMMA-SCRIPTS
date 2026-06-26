@@ -1,0 +1,21 @@
+# Managed by Ansible. Local Fail2Ban policy for NOMMA offline Root CA.
+# Debian 13 uses systemd journal by default, so backend=systemd is used.
+
+[DEFAULT]
+backend = {{ fail2ban_backend }}
+bantime = {{ fail2ban_sshd_bantime }}
+findtime = {{ fail2ban_sshd_findtime }}
+maxretry = {{ fail2ban_sshd_maxretry }}
+
+[sshd]
+enabled = true
+port = ssh
+filter = sshd
+logpath = %(sshd_log)s
+# maxretry: failed attempts before ban.
+maxretry = {{ fail2ban_sshd_maxretry }}
+# findtime: count failures inside this many seconds.
+findtime = {{ fail2ban_sshd_findtime }}
+# bantime: length of ban after threshold is reached.
+bantime = {{ fail2ban_sshd_bantime }}
+backend = {{ fail2ban_backend }}

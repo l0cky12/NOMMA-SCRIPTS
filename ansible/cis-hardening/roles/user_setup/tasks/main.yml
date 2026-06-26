@@ -1,0 +1,25 @@
+---
+- name: Ensure admin group exists
+  ansible.builtin.group:
+    name: "{{ admin_group }}"
+    state: present
+
+- name: Ensure admin user exists with vaulted password hash
+  ansible.builtin.user:
+    name: "{{ admin_user }}"
+    group: "{{ admin_group }}"
+    shell: /bin/bash
+    create_home: true
+    password: "{{ vault_admin_password_hash }}"
+    update_password: on_create
+    groups: sudo
+    append: true
+  no_log: true
+
+- name: Ensure admin certificate working directory exists
+  ansible.builtin.file:
+    path: "{{ admin_cert_dir }}"
+    state: directory
+    owner: "{{ admin_user }}"
+    group: "{{ admin_group }}"
+    mode: "0750"

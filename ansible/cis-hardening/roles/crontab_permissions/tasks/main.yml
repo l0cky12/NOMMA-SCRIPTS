@@ -1,0 +1,75 @@
+---
+# roles/crontab_permissions/tasks/main.yml
+#
+# CIS - Ensure permissions on /etc/crontab are configured
+#
+# Sets owner root:root and mode 0600 on /etc/crontab to prevent
+# unprivileged users from reading or modifying system cron jobs.
+#
+# Idempotent: ansible.builtin.file only changes when state differs.
+
+# ──────────────────────────────────────────────────────────
+# Pre-flight: check if /etc/crontab exists
+# ──────────────────────────────────────────────────────────
+
+- name: Check if /etc/crontab exists
+  ansible.builtin.stat:
+    path: "{{ crontab_perms_file }}"
+  register: crontab_stat
+
+- name: Fail if /etc/crontab not found
+  ansible.builtin.assert:
+    that:
+      - crontab_stat.stat.exists
+    fail_msg: >-
+      {{ crontab_perms_file }} does not exist.
+      If cron is not installed on this system, this control is not applicable.
+    success_msg: "/etc/crontab found"
+
+# ──────────────────────────────────────────────────────────
+# Set owner, group, and mode
+# ──────────────────────────────────────────────────────────
+
+- name: Set root:root ownership and 0600 permissions on /etc/crontab
+  ansible.builtin.file:
+    path: "{{ crontab_perms_file }}"
+    owner: "{{ crontab_perms_owner }}"
+    group: "{{ crontab_perms_group }}"
+    mode: "{{ crontab_perms_mode }}"
+
+# ──────────────────────────────────────────────────────────
+# Verification
+# ──────────────────────────────────────────────────────────
+
+- name: Re-stat /etc/crontab after changes
+  ansible.builtin.stat:
+    path: "{{ crontab_perms_file }}"
+  register: crontab_post_stat
+
+- name: Verify /etc/crontab owner is root
+  ansible.builtin.assert:
+    that:
+      - crontab_post_stat.stat.pw_name == crontab_perms_owner
+    fail_msg: "/etc/crontab owner is {{ crontab_post_stat.stat.pw_name }}, expected {{ crontab_perms_owner }}"
+    success_msg: "/etc/crontab owner is root"
+
+- name: Verify /etc/crontab group is root
+  ansible.builtin.assert:
+    that:
+      - crontab_post_stat.stat.gr_name == crontab_perms_group
+    fail_msg: "/etc/crontab group is {{ crontab_post_stat.stat.gr_name }}, expected {{ crontab_perms_group }}"
+    success_msg: "/etc/crontab group is root"
+
+- name: Verify /etc/crontab mode is 0600
+  ansible.builtin.assert:
+    that:
+      - crontab_post_stat.stat.mode == crontab_perms_mode
+    fail_msg: "/etc/crontab mode is {{ crontab_post_stat.stat.mode }}, expected {{ crontab_perms_mode }}"
+    success_msg: "/etc/crontab mode is 0600 (owner access only)"
+
+- name: Report /etc/crontab final state
+  ansible.builtin.debug:
+    msg: >-
+      /etc/crontab: owner={{ crontab_post_stat.stat.pw_name }}
+      group={{ crontab_post_stat.stat.gr_name }}
+      mode={{ crontab_post_stat.stat.mode }}

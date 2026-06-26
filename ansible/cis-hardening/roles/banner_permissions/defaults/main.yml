@@ -1,0 +1,26 @@
+---
+# roles/banner_permissions/defaults/main.yml
+#
+# Defaults for CIS 1.7.1 (/etc/issue) and 1.7.2 (/etc/issue.net)
+# Ensure access to login banner files is configured.
+
+# ── Files to harden ──────────────────────────────────────────
+banner_perms_files:
+  - /etc/issue
+  - /etc/issue.net
+
+# ── Owner and group ──────────────────────────────────────────
+banner_perms_owner: root
+banner_perms_group: root
+
+# ── File mode ───────────────────────────────────────────────
+# CIS accepts: 644, 640, 600, 400
+# 0644 is the most common (readable by all, writable by root only)
+banner_perms_mode: "0644"
+
+# ── Acceptable modes per CIS check ──────────────────────────
+banner_perms_acceptable_modes:
+  - "0644"
+  - "0640"
+  - "0600"
+  - "0400"

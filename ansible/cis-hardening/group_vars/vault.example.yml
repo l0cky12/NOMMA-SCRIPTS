@@ -1,0 +1,13 @@
+---
+# Example only. Do not use this file as-is.
+# Create group_vars/vault.yml with ansible-vault and store real values there.
+# The admin password must be a HASH, not plaintext.
+# Example generation:
+#   ansible all -i localhost, -m ansible.builtin.debug \
+#     -a "msg={{ 'password' | password_hash('sha512') }}"
+# Or:
+#   mkpasswd --method=sha-512 --rounds=656000
+
+vault_admin_password_hash: "$6$REPLACE_WITH_SHA512_CRYPT_HASH"
+vault_root_ca_key_passphrase: "REPLACE_WITH_LONG_RANDOM_ROOT_CA_PASSPHRASE"
+vault_intermediate_ca_key_passphrase: "REPLACE_WITH_LONG_RANDOM_INTERMEDIATE_CA_PASSPHRASE"

@@ -1,0 +1,182 @@
+---
+- name: Ensure Intermediate CA directory structure exists
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "{{ item.mode }}"
+  loop:
+    - { path: "{{ intermediate_ca_base_dir }}", mode: "0755" }
+    - { path: "{{ intermediate_ca_base_dir }}/certs", mode: "0755" }
+    - { path: "{{ intermediate_ca_base_dir }}/crl", mode: "0755" }
+    - { path: "{{ intermediate_ca_base_dir }}/csr", mode: "0755" }
+    - { path: "{{ intermediate_ca_base_dir }}/newcerts", mode: "0755" }
+    - { path: "{{ intermediate_ca_private_dir }}", mode: "0700" }
+
+- name: Initialize Intermediate CA database files
+  ansible.builtin.copy:
+    dest: "{{ item.dest }}"
+    content: "{{ item.content }}"
+    owner: root
+    group: root
+    mode: "0644"
+    force: false
+  loop:
+    - { dest: "{{ intermediate_ca_base_dir }}/index.txt", content: "" }
+    - { dest: "{{ intermediate_ca_base_dir }}/serial", content: "2000\n" }
+    - { dest: "{{ intermediate_ca_base_dir }}/crlnumber", content: "2000\n" }
+
+- name: Install Intermediate CA OpenSSL configuration
+  ansible.builtin.template:
+    src: intermediate-openssl.cnf.j2
+    dest: "{{ intermediate_ca_openssl_cnf }}"
+    owner: root
+    group: root
+    mode: "0644"
+    backup: true
+
+- name: Generate encrypted Intermediate CA private key if missing
+  ansible.builtin.command:
+    argv:
+      - openssl
+      - genpkey
+      - -algorithm
+      - RSA
+      - -aes-256-cbc
+      - -pass
+      - "pass:{{ vault_intermediate_ca_key_passphrase }}"
+      - -pkeyopt
+      - "rsa_keygen_bits:{{ root_ca_rsa_bits }}"
+      - -out
+      - "{{ intermediate_ca_key_path }}"
+    creates: "{{ intermediate_ca_key_path }}"
+  no_log: true
+
+- name: Secure Intermediate CA private key permissions
+  ansible.builtin.file:
+    path: "{{ intermediate_ca_key_path }}"
+    owner: root
+    group: root
+    mode: "0600"
+
+- name: Generate Intermediate CA CSR if missing
+  ansible.builtin.command:
+    argv:
+      - openssl
+      - req
+      - -config
+      - "{{ intermediate_ca_openssl_cnf }}"
+      - -new
+      - -sha256
+      - -key
+      - "{{ intermediate_ca_key_path }}"
+      - -passin
+      - "pass:{{ vault_intermediate_ca_key_passphrase }}"
+      - -out
+      - "{{ intermediate_ca_csr_path }}"
+      - -subj
+      - >-
+        /C={{ pki_country }}/ST={{ pki_state }}/L={{ pki_locality }}
+        /O={{ pki_organization }}/OU={{ pki_org_unit }}
+        /CN={{ intermediate_ca_common_name }}
+    creates: "{{ intermediate_ca_csr_path }}"
+  no_log: true
+
+- name: Sign Intermediate CA certificate with offline Root CA if missing
+  ansible.builtin.command:
+    argv:
+      - openssl
+      - ca
+      - -batch
+      - -config
+      - "{{ root_ca_openssl_cnf }}"
+      - -extensions
+      - v3_intermediate_ca
+      - -days
+      - "{{ intermediate_ca_days }}"
+      - -notext
+      - -md
+      - sha256
+      - -passin
+      - "pass:{{ vault_root_ca_key_passphrase }}"
+      - -in
+      - "{{ intermediate_ca_csr_path }}"
+      - -out
+      - "{{ intermediate_ca_cert_path }}"
+    creates: "{{ intermediate_ca_cert_path }}"
+  no_log: true
+
+- name: Read Intermediate CA certificate for chain build
+  ansible.builtin.slurp:
+    src: "{{ intermediate_ca_cert_path }}"
+  register: issuing_ca_intermediate_cert_slurp
+
+- name: Read Root CA certificate for chain build
+  ansible.builtin.slurp:
+    src: "{{ root_ca_cert_path }}"
+  register: issuing_ca_root_cert_slurp
+
+- name: Build Intermediate CA chain file
+  ansible.builtin.copy:
+    dest: "{{ intermediate_ca_chain_path }}"
+    content: |
+      {{ issuing_ca_intermediate_cert_slurp.content | b64decode }}
+      {{ issuing_ca_root_cert_slurp.content | b64decode }}
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Install future server certificate OpenSSL example template
+  ansible.builtin.template:
+    src: server-cert-openssl.cnf.j2
+    dest: "{{ intermediate_ca_base_dir }}/server-cert-openssl-example.cnf"
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Install Root CA signing workflow documentation
+  ansible.builtin.template:
+    src: signing-workflow.md.j2
+    dest: "{{ intermediate_ca_base_dir }}/SIGNING-WORKFLOW.md"
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Copy issuing CA public signing materials to admin cert directory
+  ansible.builtin.copy:
+    src: "{{ item.src }}"
+    dest: "{{ admin_cert_dir }}/{{ item.dest }}"
+    remote_src: true
+    owner: "{{ admin_user }}"
+    group: "{{ admin_group }}"
+    mode: "{{ item.mode }}"
+  loop:
+    - src: "{{ intermediate_ca_csr_path }}"
+      dest: nomma-issuing-ca.csr.pem
+      mode: "0644"
+    - src: "{{ intermediate_ca_cert_path }}"
+      dest: nomma-issuing-ca.cert.pem
+      mode: "0644"
+    - src: "{{ intermediate_ca_chain_path }}"
+      dest: nomma-ca-chain.cert.pem
+      mode: "0644"
+    - src: "{{ root_ca_cert_path }}"
+      dest: nomma-root-ca.cert.pem
+      mode: "0644"
+    - src: "{{ intermediate_ca_base_dir }}/SIGNING-WORKFLOW.md"
+      dest: SIGNING-WORKFLOW.md
+      mode: "0644"
+    - src: "{{ intermediate_ca_base_dir }}/server-cert-openssl-example.cnf"
+      dest: server-cert-openssl-example.cnf
+      mode: "0644"
+
+- name: Validate Intermediate CA certificate against Root CA
+  ansible.builtin.command:
+    argv:
+      - openssl
+      - verify
+      - -CAfile
+      - "{{ root_ca_cert_path }}"
+      - "{{ intermediate_ca_cert_path }}"
+  changed_when: false

@@ -1,0 +1,24 @@
+---
+# playbooks/cis-5.2.8-ssh-access.yml
+#
+# CIS 5.2.8 - Ensure SSH access is limited
+# Restricts SSH remote login to authorized users only.
+#
+# Compliance Mapping:
+#   CIS:   5.2.8
+#   NIST:  AC-3, AC-6
+#   MITRE: T1078 (Valid Accounts)
+#
+# Usage:
+#   ansible-playbook -i inventory/hosts.yml playbooks/cis-5.2.8-ssh-access.yml
+#
+# Or via site.yml with tags:
+#   ansible-playbook -i inventory/hosts.yml playbooks/site.yml --tags cis-5.2.8
+
+- name: CIS 5.2.8 - Restrict SSH access to authorized users
+  hosts: linux_servers
+  become: true
+
+  roles:
+    - role: ssh_access
+      tags: [cis, hardening, cis_ssh, cis-5.2.8, cis_5_2_8]

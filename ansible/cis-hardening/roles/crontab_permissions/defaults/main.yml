@@ -1,0 +1,14 @@
+---
+# roles/crontab_permissions/defaults/main.yml
+#
+# Defaults for CIS -Ensure permissions on /etc/crontab are configured
+
+# Path to the system crontab file
+crontab_perms_file: /etc/crontab
+
+# Owner and group (must be root:root per CIS)
+crontab_perms_owner: root
+crontab_perms_group: root
+
+# File mode — CIS check requires 0600 (og-rwx, owner only)
+crontab_perms_mode: "0600"

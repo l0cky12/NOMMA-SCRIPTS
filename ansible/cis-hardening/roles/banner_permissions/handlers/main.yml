@@ -1,0 +1,4 @@
+---
+# roles/banner_permissions/handlers/main.yml
+#
+# No handlers needed — no service restarts for file permission changes.

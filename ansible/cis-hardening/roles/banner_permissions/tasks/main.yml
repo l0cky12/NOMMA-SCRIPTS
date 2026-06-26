@@ -1,0 +1,106 @@
+---
+# roles/banner_permissions/tasks/main.yml
+#
+# CIS 1.7.1 - Ensure access to /etc/issue is configured
+# CIS 1.7.2 - Ensure access to /etc/issue.net is configured
+#
+# Sets owner root:root and mode (0644 by default) on both
+# /etc/issue and /etc/issue.net.  Resolves symlinks with
+# readlink -e per the CIS remediation guidance.
+#
+# Idempotent: ansible.builtin.file only changes when state differs.
+
+# ──────────────────────────────────────────────────────────
+# Pre-flight: stat both files (following symlinks)
+# ──────────────────────────────────────────────────────────
+
+- name: Check if banner files exist (following symlinks)
+  ansible.builtin.stat:
+    path: "{{ item }}"
+    follow: yes
+  register: banner_stat
+  loop: "{{ banner_perms_files }}"
+
+# ──────────────────────────────────────────────────────────
+# Resolve symlink targets and set permissions
+# ──────────────────────────────────────────────────────────
+
+- name: Resolve symlink target for banner files
+  ansible.builtin.command: "readlink -e {{ item.item }}"
+  register: banner_realpath
+  changed_when: false
+  loop: "{{ banner_stat.results }}"
+  when: item.stat.exists
+
+- name: Set owner, group, and mode on banner files (resolved path)
+  ansible.builtin.file:
+    path: "{{ item.stdout }}"
+    owner: "{{ banner_perms_owner }}"
+    group: "{{ banner_perms_group }}"
+    mode: "{{ banner_perms_mode }}"
+    follow: yes
+  loop: "{{ banner_realpath.results }}"
+  when: item.stdout is defined and item.stdout | length > 0
+
+- name: Create banner file if it does not exist (empty, correct perms)
+  ansible.builtin.file:
+    path: "{{ item.item }}"
+    state: touch
+    owner: "{{ banner_perms_owner }}"
+    group: "{{ banner_perms_group }}"
+    mode: "{{ banner_perms_mode }}"
+  loop: "{{ banner_stat.results }}"
+  when: not item.stat.exists
+
+# ──────────────────────────────────────────────────────────
+# Verification: re-stat and validate against CIS check
+# ──────────────────────────────────────────────────────────
+
+- name: Re-check banner files after changes (following symlinks)
+  ansible.builtin.stat:
+    path: "{{ item }}"
+    follow: yes
+  register: banner_post_stat
+  loop: "{{ banner_perms_files }}"
+
+- name: Verify banner files exist
+  ansible.builtin.assert:
+    that:
+      - item.stat.exists
+    fail_msg: "{{ item.item }} does not exist after hardening."
+    success_msg: "{{ item.item }} exists."
+  loop: "{{ banner_post_stat.results }}"
+
+- name: Verify banner files owner is root
+  ansible.builtin.assert:
+    that:
+      - item.stat.pw_name == banner_perms_owner
+    fail_msg: "{{ item.item }} owner is {{ item.stat.pw_name }}, expected {{ banner_perms_owner }}."
+    success_msg: "{{ item.item }} owner is root."
+  loop: "{{ banner_post_stat.results }}"
+
+- name: Verify banner files group is root
+  ansible.builtin.assert:
+    that:
+      - item.stat.gr_name == banner_perms_group
+    fail_msg: "{{ item.item }} group is {{ item.stat.gr_name }}, expected {{ banner_perms_group }}."
+    success_msg: "{{ item.item }} group is root."
+  loop: "{{ banner_post_stat.results }}"
+
+- name: Verify banner files mode is acceptable per CIS
+  ansible.builtin.assert:
+    that:
+      - item.stat.mode in banner_perms_acceptable_modes
+    fail_msg: >-
+      {{ item.item }} mode is {{ item.stat.mode }}.
+      CIS accepts: {{ banner_perms_acceptable_modes | join(', ') }}
+    success_msg: "{{ item.item }} mode is {{ item.stat.mode }} (CIS acceptable)."
+  loop: "{{ banner_post_stat.results }}"
+
+- name: Report banner files final state
+  ansible.builtin.debug:
+    msg: >-
+      {{ item.item }}: owner={{ item.stat.pw_name }}
+      group={{ item.stat.gr_name }}
+      mode={{ item.stat.mode }}
+  loop: "{{ banner_post_stat.results }}"

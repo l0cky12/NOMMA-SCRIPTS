@@ -1,0 +1,196 @@
+---
+# playbooks/baseline-hardening.yml
+#
+# Baseline Linux hardening playbook for NOMMA Debian/Ubuntu hosts.
+#
+# Installs essential security and operational packages, creates admin
+# users, deploys SSH keys, and grants sudo access.
+#
+# Usage:
+#   ansible-playbook -i inventory/hosts.yml playbooks/baseline-hardening.yml --ask-become-pass
+#
+# IMPORTANT:
+#   The default password "password" is for initial build or lab use only.
+#   Change it immediately in production or -- better -- use Ansible Vault
+#   to supply a real hash (see vault_admin_password_hash variable below).
+#
+# To generate a SHA-512 hash for vault:
+#   python3 - <<'PY'
+#   import crypt, getpass
+#   print(crypt.crypt(getpass.getpass('Password: '), crypt.mksalt(crypt.METHOD_SHA512)))
+#   PY
+
+- name: Baseline hardening -- packages, users, sudo
+  hosts: linux_servers
+  become: true
+
+  vars:
+    # ── Admin users ──────────────────────────────────────────────
+    admin_users:
+      - username: dcooper
+        shell: /bin/bash
+        ssh_key: ""          # no SSH key deployed for dcooper
+      - username: ldecareaux
+        shell: /bin/bash
+        ssh_key: "{{ lookup('ansible.builtin.file', '/home/liam/.ssh/id_rsa_work.pub') }}"
+
+    # ── Password ────────────────────────────────────────────────
+    # Default is the literal string "password" hashed with SHA-512.
+    # In production, override this via Ansible Vault:
+    #   vault_admin_password_hash: "$6$..."
+    admin_password_hash: "{{ vault_admin_password_hash | default('password' | password_hash('sha512')) }}"
+
+    # ── Packages ────────────────────────────────────────────────
+    # Debian/Ubuntu package names.  Some requested tools are provided
+    # by a different package name on this platform:
+    #   nslookup, dig, host  -> bind9-dnsutils
+    #   ss, ip               -> iproute2
+    #   sha256sum            -> coreutils (pre-installed, listed for clarity)
+    #   sudo                 -> sudo
+    baseline_packages:
+      - apparmor
+      - fail2ban
+      - net-tools
+      - ufw
+      - htop
+      - iproute2          # provides: ip, ss
+      - wget
+      - curl
+      - neovim
+      - sudo
+      - bind9-dnsutils    # provides: nslookup, dig, host
+      - tcpdump
+      - traceroute
+      - unattended-upgrades
+      - needrestart
+      - rsyslog
+      - auditd
+      - coreutils          # provides: sha256sum (normally pre-installed)
+      - tree
+      - lsof
+
+  tasks:
+
+    # ──────────────────────────────────────────────────────────
+    # Package installation
+    # ──────────────────────────────────────────────────────────
+
+    - name: Update apt package cache
+      ansible.builtin.apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Install baseline security and operational packages
+      ansible.builtin.apt:
+        name: "{{ baseline_packages }}"
+        state: present
+
+    # ──────────────────────────────────────────────────────────
+    # User creation
+    # ──────────────────────────────────────────────────────────
+
+    - name: Create admin users with home directory and bash shell
+      ansible.builtin.user:
+        name: "{{ item.username }}"
+        shell: "{{ item.shell }}"
+        create_home: yes
+        state: present
+      loop: "{{ admin_users }}"
+
+    - name: Set password for admin users
+      ansible.builtin.user:
+        name: "{{ item.username }}"
+        password: "{{ admin_password_hash }}"
+      loop: "{{ admin_users }}"
+      no_log: true
+
+    # ──────────────────────────────────────────────────────────
+    # SSH key deployment
+    # ──────────────────────────────────────────────────────────
+
+    - name: Ensure .ssh directory exists for admin users
+      ansible.builtin.file:
+        path: "/home/{{ item.username }}/.ssh"
+        state: directory
+        owner: "{{ item.username }}"
+        group: "{{ item.username }}"
+        mode: "0700"
+      loop: "{{ admin_users }}"
+      when: item.ssh_key | length > 0
+
+    - name: Deploy SSH public key for ldecareaux
+      ansible.builtin.copy:
+        dest: "/home/{{ item.username }}/.ssh/authorized_keys"
+        content: "{{ item.ssh_key }}\n"
+        owner: "{{ item.username }}"
+        group: "{{ item.username }}"
+        mode: "0600"
+      loop: "{{ admin_users }}"
+      when: item.ssh_key | length > 0
+      no_log: true
+
+    # ──────────────────────────────────────────────────────────
+    # Sudo access
+    # ──────────────────────────────────────────────────────────
+
+    - name: Add admin users to sudo group
+      ansible.builtin.user:
+        name: "{{ item.username }}"
+        groups: sudo
+        append: yes
+      loop: "{{ admin_users }}"
+
+    - name: Ensure sudo group has passwordless sudo (NOPASSWD)
+      ansible.builtin.copy:
+        dest: /etc/sudoers.d/sudo-group-nopasswd
+        content: "%sudo ALL=(ALL) NOPASSWD: ALL\n"
+        owner: root
+        group: root
+        mode: "0440"
+        validate: 'visudo -cf %s'
+
+    # ──────────────────────────────────────────────────────────
+    # Service enablement
+    # ──────────────────────────────────────────────────────────
+
+    - name: Ensure AppArmor is enabled and running
+      ansible.builtin.systemd:
+        name: apparmor
+        state: started
+        enabled: yes
+
+    - name: Ensure fail2ban is enabled and running
+      ansible.builtin.systemd:
+        name: fail2ban
+        state: started
+        enabled: yes
+
+    - name: Ensure rsyslog is enabled and running
+      ansible.builtin.systemd:
+        name: rsyslog
+        state: started
+        enabled: yes
+
+    - name: Ensure auditd is enabled and running
+      ansible.builtin.systemd:
+        name: auditd
+        state: started
+        enabled: yes
+
+    - name: Ensure unattended-upgrades timer is enabled
+      ansible.builtin.systemd:
+        name: apt-daily.timer
+        state: started
+        enabled: yes
+
+  handlers:
+
+    - name: Restart fail2ban
+      ansible.builtin.systemd:
+        name: fail2ban
+        state: restarted
+
+    - name: Restart rsyslog
+      ansible.builtin.systemd:
+        name: rsyslog
+        state: restarted

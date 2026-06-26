@@ -1,0 +1,124 @@
+---
+# roles/ssh_idle_timeout/tasks/main.yml
+#
+# CIS 5.2.12 - Ensure SSH Idle Timeout Interval is configured
+#
+# Sets ClientAliveInterval and ClientAliveCountMax in sshd_config
+# above any Include/Match entries (first occurrence takes precedence).
+# Prevents resource exhaustion from idle SSH connections.
+#
+# Idempotent: uses ansible.builtin.lineinfile with regexp match.
+# Safe to rerun.
+
+# ──────────────────────────────────────────────────────────
+# Pre-flight: verify sshd_config exists
+# ──────────────────────────────────────────────────────────
+
+- name: Check if sshd_config exists
+  ansible.builtin.stat:
+    path: "{{ ssh_idle_timeout_sshd_config }}"
+  register: ssh_idle_timeout_sshd_stat
+
+- name: Fail if sshd_config not found
+  ansible.builtin.assert:
+    that:
+      - ssh_idle_timeout_sshd_stat.stat.exists
+    fail_msg: >-
+      {{ ssh_idle_timeout_sshd_config }} not found. Ensure openssh-server is installed.
+    success_msg: "sshd_config found at {{ ssh_idle_timeout_sshd_config }}."
+
+# ──────────────────────────────────────────────────────────
+# Configure ClientAliveInterval (above Include/Match)
+# ──────────────────────────────────────────────────────────
+
+- name: Set ClientAliveInterval in sshd_config
+  ansible.builtin.lineinfile:
+    path: "{{ ssh_idle_timeout_sshd_config }}"
+    regexp: '^\s*#?\s*ClientAliveInterval\s+.*$'
+    line: "ClientAliveInterval {{ ssh_client_alive_interval }}"
+    insertbefore: '^\s*(Include|Match)\s'
+    state: present
+    backup: yes
+    validate: 'sshd -t -f %s'
+  notify: Reload sshd
+
+# ──────────────────────────────────────────────────────────
+# Configure ClientAliveCountMax (above Include/Match)
+# ──────────────────────────────────────────────────────────
+
+- name: Set ClientAliveCountMax in sshd_config
+  ansible.builtin.lineinfile:
+    path: "{{ ssh_idle_timeout_sshd_config }}"
+    regexp: '^\s*#?\s*ClientAliveCountMax\s+.*$'
+    line: "ClientAliveCountMax {{ ssh_client_alive_count_max }}"
+    insertbefore: '^\s*(Include|Match)\s'
+    state: present
+    backup: yes
+    validate: 'sshd -t -f %s'
+  notify: Reload sshd
+
+# ──────────────────────────────────────────────────────────
+# Flush handlers so sshd reloads before verification
+# ──────────────────────────────────────────────────────────
+
+- name: Flush handlers
+  ansible.builtin.meta: flush_handlers
+
+# ──────────────────────────────────────────────────────────
+# Verification
+# ──────────────────────────────────────────────────────────
+
+- name: Read sshd_config for ClientAliveInterval verification
+  ansible.builtin.command: grep -i '^ClientAliveInterval' {{ ssh_idle_timeout_sshd_config }}
+  register: ssh_idle_timeout_interval_check
+  changed_when: false
+  failed_when: false
+
+- name: Verify ClientAliveInterval is set
+  ansible.builtin.assert:
+    that:
+      - "'ClientAliveInterval' in ssh_idle_timeout_interval_check.stdout"
+      - "ssh_client_alive_interval | string in ssh_idle_timeout_interval_check.stdout"
+    fail_msg: >-
+      ClientAliveInterval not set to {{ ssh_client_alive_interval }} in {{ ssh_idle_timeout_sshd_config }}.
+      Run: grep -i '^ClientAliveInterval' {{ ssh_idle_timeout_sshd_config }}
+    success_msg: "ClientAliveInterval set to {{ ssh_client_alive_interval }}."
+
+- name: Read sshd_config for ClientAliveCountMax verification
+  ansible.builtin.command: grep -i '^ClientAliveCountMax' {{ ssh_idle_timeout_sshd_config }}
+  register: ssh_idle_timeout_countmax_check
+  changed_when: false
+  failed_when: false
+
+- name: Verify ClientAliveCountMax is set
+  ansible.builtin.assert:
+    that:
+      - "'ClientAliveCountMax' in ssh_idle_timeout_countmax_check.stdout"
+      - "ssh_client_alive_count_max | string in ssh_idle_timeout_countmax_check.stdout"
+    fail_msg: >-
+      ClientAliveCountMax not set to {{ ssh_client_alive_count_max }} in {{ ssh_idle_timeout_sshd_config }}.
+      Run: grep -i '^ClientAliveCountMax' {{ ssh_idle_timeout_sshd_config }}
+    success_msg: "ClientAliveCountMax set to {{ ssh_client_alive_count_max }}."
+
+- name: Verify effective SSH timeout configuration
+  ansible.builtin.command: sshd -T -f {{ ssh_idle_timeout_sshd_config }}
+  register: ssh_idle_timeout_effective
+  changed_when: false
+  failed_when: false
+
+- name: Verify effective ClientAliveInterval matches configured value
+  ansible.builtin.assert:
+    that:
+      - "ssh_client_alive_interval | string in ssh_idle_timeout_effective.stdout"
+    fail_msg: >-
+      Effective ClientAliveInterval does not match {{ ssh_client_alive_interval }}.
+      Run: sshd -T -f {{ ssh_idle_timeout_sshd_config }} | grep -i clientalive
+    success_msg: "Effective ClientAliveInterval matches {{ ssh_client_alive_interval }}."
+  when: ssh_idle_timeout_effective.rc == 0
+
+- name: Report SSH idle timeout status
+  ansible.builtin.debug:
+    msg: >-
+      SSH idle timeout configured: ClientAliveInterval={{ ssh_client_alive_interval }}s,
+      ClientAliveCountMax={{ ssh_client_alive_count_max }}
+      (total timeout: {{ ssh_client_alive_interval * ssh_client_alive_count_max }}s).
