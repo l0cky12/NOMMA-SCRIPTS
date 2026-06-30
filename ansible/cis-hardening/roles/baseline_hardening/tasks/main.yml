@@ -217,12 +217,53 @@
 # CIS checks:
 #   systemctl is-active systemd-timesyncd.service -> active
 #   systemctl is-enabled systemd-timesyncd.service -> enabled
-- name: Ensure systemd-timesyncd is enabled and running when selected
+- name: Ensure systemd-timesyncd package is installed when selected
+  ansible.builtin.apt:
+    name: systemd-timesyncd
+    state: present
+  when: baseline_time_sync_service == 'systemd-timesyncd'
+
+- name: Ensure systemd-timesyncd is unmasked when selected
   ansible.builtin.systemd:
     name: "{{ baseline_systemd_timesyncd_service }}"
     masked: no
+  when: baseline_time_sync_service == 'systemd-timesyncd'
+
+- name: Ensure systemd-timesyncd is enabled and running when selected
+  ansible.builtin.systemd:
+    name: "{{ baseline_systemd_timesyncd_service }}"
     state: started
     enabled: yes
+  when: baseline_time_sync_service == 'systemd-timesyncd'
+
+- name: Verify systemd-timesyncd is active when selected
+  ansible.builtin.command: systemctl is-active systemd-timesyncd.service
+  register: timesyncd_active_check
+  changed_when: false
+  failed_when: false
+  when: baseline_time_sync_service == 'systemd-timesyncd'
+
+- name: Assert systemd-timesyncd is active when selected
+  ansible.builtin.assert:
+    that:
+      - timesyncd_active_check.stdout | trim == 'active'
+    fail_msg: "systemd-timesyncd.service is not active."
+    success_msg: "systemd-timesyncd.service is active."
+  when: baseline_time_sync_service == 'systemd-timesyncd'
+
+- name: Verify systemd-timesyncd is enabled when selected
+  ansible.builtin.command: systemctl is-enabled systemd-timesyncd.service
+  register: timesyncd_enabled_check
+  changed_when: false
+  failed_when: false
+  when: baseline_time_sync_service == 'systemd-timesyncd'
+
+- name: Assert systemd-timesyncd is enabled when selected
+  ansible.builtin.assert:
+    that:
+      - timesyncd_enabled_check.stdout | trim == 'enabled'
+    fail_msg: "systemd-timesyncd.service is not enabled."
+    success_msg: "systemd-timesyncd.service is enabled."
   when: baseline_time_sync_service == 'systemd-timesyncd'
 
 - name: Check if systemd-timesyncd service exists
