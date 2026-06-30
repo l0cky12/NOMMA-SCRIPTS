@@ -225,10 +225,18 @@
     enabled: yes
   when: baseline_time_sync_service == 'systemd-timesyncd'
 
+- name: Check if systemd-timesyncd service exists
+  ansible.builtin.command: systemctl cat systemd-timesyncd.service
+  register: timesyncd_service_check
+  changed_when: false
+  failed_when: false
+
 - name: Ensure systemd-timesyncd is masked when another time service is selected
   ansible.builtin.systemd:
     name: "{{ baseline_systemd_timesyncd_service }}"
     state: stopped
     enabled: no
     masked: yes
-  when: baseline_time_sync_service != 'systemd-timesyncd'
+  when:
+    - baseline_time_sync_service != 'systemd-timesyncd'
+    - timesyncd_service_check.rc == 0
