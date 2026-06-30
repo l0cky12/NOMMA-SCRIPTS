@@ -11,5 +11,23 @@ ufw_allow_ssh: true
 # If false, nftables is stopped and disabled but the package remains installed.
 ufw_remove_nftables: true
 
-# SSH port to allow (used if allow by port instead of by name)
-ufw_ssh_port: 22
+# ── Outbound allow rules ───────────────────────────────────
+# Default outbound traffic is denied. Add essential services here
+# so servers can resolve names, reach repositories, and sync time.
+# Each item: { port, proto, comment }
+ufw_outbound_allowed:
+  - port: 53
+    proto: any
+    comment: DNS
+  - port: 80
+    proto: tcp
+    comment: HTTP
+  - port: 443
+    proto: tcp
+    comment: HTTPS
+  - port: 123
+    proto: udp
+    comment: NTP
+
+# You can also add arbitrary extra outbound rules for your site:
+# ufw_outbound_extra: []

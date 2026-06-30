@@ -71,6 +71,20 @@
   when: ufw_allow_ssh | bool
 
 # ──────────────────────────────────────────────────────────
+# Allow essential outbound services before enabling firewall
+# ──────────────────────────────────────────────────────────
+
+- name: Allow essential outbound services through UFW
+  community.general.ufw:
+    rule: allow
+    direction: out
+    port: "{{ item.port }}"
+    proto: "{{ item.proto }}"
+    comment: "{{ item.comment }}"
+  loop: "{{ ufw_outbound_allowed }}"
+  when: ufw_outbound_allowed | length > 0
+
+# ──────────────────────────────────────────────────────────
 # Disable nftables (conflicts with ufw on Debian)
 # ──────────────────────────────────────────────────────────
 
