@@ -3,6 +3,11 @@
 #
 # CIS 5.3.2 - Ensure sudo authentication timeout is configured correctly
 # Sets the timestamp_timeout for sudo credential caching.
+#
+# Rationale: Without (re-)authentication, users may access resources or perform
+# tasks for which they do not have authorization. When operating systems provide
+# the capability to escalate a functional capability, it is critical the user
+# (re-)authenticate.
 
 # Number of minutes before sudo credentials expire.
 # CIS recommends 15 minutes or less. Default: 15.

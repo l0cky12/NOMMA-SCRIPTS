@@ -3,9 +3,18 @@
 #
 # CIS 1.6.4 - Ensure permissions on /etc/motd are configured
 #
-# Sets owner root:root and mode (0644 by default) on /etc/motd,
-# or removes the file entirely.  Handles symlinks by resolving
-# the real path with readlink before applying permissions.
+# Description:
+#   The contents of the /etc/motd file are displayed to users after login and
+#   function as a message of the day for authenticated users.
+#
+# Rationale:
+#   If /etc/motd does not have the correct access configured, it could be
+#   modified by unauthorized users with incorrect or misleading information.
+#
+# Remediation:
+#   Enforce root:root ownership and mode u-x,go-wx (0644) on /etc/motd,
+#   or remove the file entirely. Handles symlinks by resolving the real
+#   path with readlink before applying permissions.
 #
 # Idempotent: uses ansible.builtin.file module which only changes
 # when the current state differs from desired.
@@ -52,6 +61,7 @@
     group: "{{ motd_perms_group }}"
     mode: "{{ motd_perms_mode }}"
   when:
+    - motd_perms_create_if_missing | bool
     - motd_perms_ensure_present | bool
     - not motd_file_stat.stat.exists
 
@@ -103,15 +113,14 @@
     success_msg: "/etc/motd group is root"
   when: motd_perms_ensure_present | bool
 
-- name: Verify /etc/motd mode is acceptable per CIS 1.6.4
+- name: Verify /etc/motd mode matches the required remediation
   ansible.builtin.assert:
     that:
-      - motd_post_stat.stat.mode in motd_perms_acceptable_modes
+      - motd_post_stat.stat.mode == motd_perms_mode
     fail_msg: >-
       /etc/motd mode is {{ motd_post_stat.stat.mode }}.
-      CIS 1.6.4 accepts: {{ motd_perms_acceptable_modes | join(', ') }}
-    success_msg: "/etc/motd mode is {{ motd_post_stat.stat.mode }} (CIS acceptable)"
-  when: motd_perms_ensure_present | bool
+      CIS 1.6.4 remediation requires {{ motd_perms_mode }}
+    success_msg: "/etc/motd mode is {{ motd_post_stat.stat.mode }} (matches remediation)"
 
 - name: Report /etc/motd final state
   ansible.builtin.debug:

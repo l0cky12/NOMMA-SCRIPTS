@@ -1,0 +1,91 @@
+---
+# roles/ssh_max_auth_tries/tasks/main.yml
+#
+# CIS 5.2.x - Ensure SSH MaxAuthTries is configured
+#
+# Rationale: Setting the MaxAuthTries parameter to a low number will minimize
+# the risk of successful brute force attacks to the SSH server. While the
+# recommended setting is 4, set the number based on site policy.
+#
+# Idempotent: uses ansible.builtin.lineinfile with regexp match.
+# Safe to rerun.
+
+# ----------------------------------------------------------
+# Pre-flight: verify sshd_config exists
+# ----------------------------------------------------------
+
+- name: Check if sshd_config exists
+  ansible.builtin.stat:
+    path: "{{ ssh_max_auth_tries_sshd_config }}"
+  register: ssh_max_auth_tries_sshd_stat
+
+- name: Fail if sshd_config not found
+  ansible.builtin.assert:
+    that:
+      - ssh_max_auth_tries_sshd_stat.stat.exists
+    fail_msg: >-
+      {{ ssh_max_auth_tries_sshd_config }} not found. Ensure openssh-server is installed.
+    success_msg: "sshd_config found at {{ ssh_max_auth_tries_sshd_config }}."
+
+# ----------------------------------------------------------
+# Configure MaxAuthTries above Include/Match
+# ----------------------------------------------------------
+
+- name: Set MaxAuthTries in sshd_config
+  ansible.builtin.lineinfile:
+    path: "{{ ssh_max_auth_tries_sshd_config }}"
+    regexp: '^\s*#?\s*MaxAuthTries\s+.*$'
+    line: "MaxAuthTries {{ ssh_max_auth_tries_value }}"
+    insertbefore: '^\s*(Include|Match)\s'
+    state: present
+    backup: yes
+    validate: 'sshd -t -f %s'
+  notify: Reload sshd
+
+# ----------------------------------------------------------
+# Flush handlers so sshd reloads before verification
+# ----------------------------------------------------------
+
+- name: Flush handlers
+  ansible.builtin.meta: flush_handlers
+
+# ----------------------------------------------------------
+# Verification
+# ----------------------------------------------------------
+
+- name: Read sshd_config for MaxAuthTries verification
+  ansible.builtin.command: grep -iE '^\s*MaxAuthTries\s+' {{ ssh_max_auth_tries_sshd_config }}
+  register: ssh_max_auth_tries_config_check
+  changed_when: false
+  failed_when: false
+
+- name: Verify MaxAuthTries directive is set
+  ansible.builtin.assert:
+    that:
+      - ssh_max_auth_tries_config_check.stdout | length > 0
+      - "ssh_max_auth_tries_value | string in ssh_max_auth_tries_config_check.stdout"
+    fail_msg: >-
+      MaxAuthTries not set to {{ ssh_max_auth_tries_value }} in
+      {{ ssh_max_auth_tries_sshd_config }}.
+      Run: grep -iE '^\s*MaxAuthTries\s+' {{ ssh_max_auth_tries_sshd_config }}
+    success_msg: "MaxAuthTries set to {{ ssh_max_auth_tries_value }} in sshd_config."
+
+- name: Verify effective MaxAuthTries via sshd -T
+  ansible.builtin.command: sshd -T -f {{ ssh_max_auth_tries_sshd_config }}
+  register: ssh_max_auth_tries_effective
+  changed_when: false
+  failed_when: false
+
+- name: Assert effective MaxAuthTries matches configured value
+  ansible.builtin.assert:
+    that:
+      - "'maxauthtries {{ ssh_max_auth_tries_value }}' in ssh_max_auth_tries_effective.stdout"
+    fail_msg: >-
+      Effective MaxAuthTries does not match {{ ssh_max_auth_tries_value }}.
+      Run: sshd -T -f {{ ssh_max_auth_tries_sshd_config }} | grep -i maxauthtries
+    success_msg: "Effective MaxAuthTries matches {{ ssh_max_auth_tries_value }}."
+  when: ssh_max_auth_tries_effective.rc == 0
+
+- name: Report SSH MaxAuthTries status
+  ansible.builtin.debug:
+    msg: "SSH MaxAuthTries configured to {{ ssh_max_auth_tries_value }}."

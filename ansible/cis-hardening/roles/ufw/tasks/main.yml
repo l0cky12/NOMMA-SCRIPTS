@@ -4,13 +4,24 @@
 # CIS - Ensure ufw is installed, enabled, and running
 #
 # Ensures ufw is installed, unmasked, enabled, started, and
-# configured with safe defaults (deny inbound, allow outbound).
+# configured with safe defaults (deny inbound, deny outbound, deny routed).
 # Allows SSH before enabling to prevent lockout.
+#
+# Description: ufw is a frontend for iptables and provides a simple interface
+# for managing firewall rules.
+# Rationale: A firewall provides defense against external attack. Blocking all
+# incoming traffic by default and explicitly allowing only the required services
+# reduces the attack surface.
+# Remediation: Set default policies with: ufw default deny incoming,
+# ufw default deny outgoing, ufw default deny routed.
 #
 # CIS checks verified:
 #   systemctl is-active ufw     -> active
 #   systemctl is-enabled ufw.service -> enabled
 #   ufw status                 -> Status: active
+#   ufw status verbose         -> Default: deny|reject|disabled (incoming)
+#   ufw status verbose         -> Default: deny|reject|disabled (outgoing)
+#   ufw status verbose         -> Default: deny|reject|disabled (routed)
 
 # ──────────────────────────────────────────────────────────
 # Install ufw (should already be present from baseline)
@@ -39,10 +50,15 @@
     direction: incoming
     policy: deny
 
-- name: Set UFW default outbound policy to allow
+- name: Set UFW default outbound policy to deny
   community.general.ufw:
     direction: outgoing
-    policy: allow
+    policy: deny
+
+- name: Set UFW default routed policy to deny
+  community.general.ufw:
+    direction: routed
+    policy: deny
 
 # ──────────────────────────────────────────────────────────
 # Allow SSH before enabling the firewall (prevent lockout)
@@ -129,6 +145,21 @@
     fail_msg: "ufw status is not active. Run: ufw --force enable"
     success_msg: "ufw status is active"
 
+- name: Verify ufw verbose status default policies
+  ansible.builtin.command: ufw status verbose
+  register: ufw_status_verbose_check
+  changed_when: false
+  failed_when: false
+
+- name: Assert ufw default policies satisfy CIS requirements
+  ansible.builtin.assert:
+    that:
+      - ufw_status_verbose_check.stdout | regex_search('(?im)^Default:.*(?:deny|reject|disabled)\\s+\\(incoming\\)') is not none
+      - ufw_status_verbose_check.stdout | regex_search('(?im)^Default:.*(?:deny|reject|disabled)\\s+\\(outgoing\\)') is not none
+      - ufw_status_verbose_check.stdout | regex_search('(?im)^Default:.*(?:deny|reject|disabled)\\s+\\(routed\\)') is not none
+    fail_msg: "ufw default policies must be deny, reject, or disabled for incoming, outgoing, and routed traffic. Run: ufw default deny incoming && ufw default deny outgoing && ufw default deny routed"
+    success_msg: "ufw default policies satisfy CIS requirements"
+
 - name: Report ufw status
   ansible.builtin.debug:
-    msg: "{{ ufw_status_check.stdout }}"
+    msg: "{{ ufw_status_verbose_check.stdout }}"

@@ -1,0 +1,7 @@
+---
+# roles/ssh_max_auth_tries/handlers/main.yml
+
+- name: Reload sshd
+  ansible.builtin.service:
+    name: ssh
+    state: reloaded

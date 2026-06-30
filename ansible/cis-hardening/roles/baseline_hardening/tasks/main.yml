@@ -19,7 +19,7 @@
     name: "{{ baseline_packages }}"
     state: present
 
-- name: Remove insecure packages (telnet client)
+- name: Remove insecure telnet packages
   ansible.builtin.apt:
     name: "{{ baseline_packages_remove }}"
     state: absent
@@ -80,10 +80,10 @@
     append: yes
   loop: "{{ admin_users }}"
 
-- name: Ensure sudo group has passwordless sudo (NOPASSWD)
+- name: Ensure sudo group requires a password for sudo
   ansible.builtin.copy:
-    dest: /etc/sudoers.d/sudo-group-nopasswd
-    content: "%sudo ALL=(ALL) NOPASSWD: ALL\n"
+    dest: /etc/sudoers.d/sudo-group-require-pass
+    content: "%sudo ALL=(ALL:ALL) ALL\n"
     owner: root
     group: root
     mode: "0440"
@@ -92,6 +92,13 @@
 # ──────────────────────────────────────────────────────────
 # Service enablement
 # ──────────────────────────────────────────────────────────
+
+- name: Validate selected time synchronization service
+  ansible.builtin.assert:
+    that:
+      - baseline_time_sync_service in ['chrony', 'systemd-timesyncd']
+    fail_msg: "baseline_time_sync_service must be either 'chrony' or 'systemd-timesyncd'."
+    quiet: true
 
 - name: Ensure AppArmor is enabled and running
   ansible.builtin.systemd:
@@ -123,8 +130,105 @@
     state: started
     enabled: yes
 
+# Description:
+#   The chrony package is installed with a dedicated user account _chrony. This
+#   account is granted the access required by the chronyd service.
+#
+# Rationale:
+#   The chronyd service should run with only the required privileges.
+#
+# Remediation:
+#   Add or edit the user line to /etc/chrony/chrony.conf or a file ending in
+#   .conf in /etc/chrony/conf.d/:
+#     user _chrony
+#   OR if another time synchronization service is in use, remove chrony:
+#     apt purge chrony
+#     apt autoremove chrony
+#
+# CIS checks (condition: all):
+#   Directory /etc/chrony/conf.d/ exists
+#   Any .conf file in /etc/chrony/conf.d/ contains: user\s*_chrony
+#   /etc/chrony/chrony.conf contains: user\s*_chrony
+- name: Ensure chrony conf.d directory exists when chrony is selected
+  ansible.builtin.file:
+    path: "{{ baseline_chrony_conf_d_path }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  when: baseline_time_sync_service == 'chrony'
+
+- name: Ensure chrony runs as the dedicated chrony user
+  ansible.builtin.lineinfile:
+    path: "{{ baseline_chrony_config_path }}"
+    regexp: '^\s*user\s+'
+    line: "user {{ baseline_chrony_user }}"
+    owner: root
+    group: root
+    mode: "0644"
+    create: yes
+  notify: Restart chrony
+  when: baseline_time_sync_service == 'chrony'
+
+- name: Ensure chrony conf.d has CIS user control
+  ansible.builtin.lineinfile:
+    path: "{{ baseline_chrony_conf_d_user_config_path }}"
+    regexp: '^\s*user\s+'
+    line: "user {{ baseline_chrony_user }}"
+    owner: root
+    group: root
+    mode: "0644"
+    create: yes
+  notify: Restart chrony
+  when: baseline_time_sync_service == 'chrony'
+
 - name: Ensure chrony is enabled and running
   ansible.builtin.systemd:
     name: chrony
     state: started
     enabled: yes
+  when: baseline_time_sync_service == 'chrony'
+
+- name: Remove chrony when another time synchronization service is selected
+  ansible.builtin.apt:
+    name: chrony
+    state: absent
+    purge: yes
+    autoremove: "{{ baseline_chrony_autoremove }}"
+  when: baseline_time_sync_service != 'chrony'
+
+# Description:
+#   systemd-timesyncd is a daemon that has been added for synchronizing the
+#   system clock across the network.
+#
+# Rationale:
+#   systemd-timesyncd needs to be enabled and running in order to synchronize
+#   the system to a timeserver. Time synchronization is important to support
+#   time sensitive security mechanisms and to ensure log files have consistent
+#   time records across the enterprise to aid in forensic investigations.
+#
+# Remediation:
+#   IF systemd-timesyncd is in use on the system, run:
+#     systemctl unmask systemd-timesyncd.service
+#     systemctl --now enable systemd-timesyncd.service
+#   OR if another time synchronization service is in use, run:
+#     systemctl --now mask systemd-timesyncd.service
+#
+# CIS checks:
+#   systemctl is-active systemd-timesyncd.service -> active
+#   systemctl is-enabled systemd-timesyncd.service -> enabled
+- name: Ensure systemd-timesyncd is enabled and running when selected
+  ansible.builtin.systemd:
+    name: "{{ baseline_systemd_timesyncd_service }}"
+    masked: no
+    state: started
+    enabled: yes
+  when: baseline_time_sync_service == 'systemd-timesyncd'
+
+- name: Ensure systemd-timesyncd is masked when another time service is selected
+  ansible.builtin.systemd:
+    name: "{{ baseline_systemd_timesyncd_service }}"
+    state: stopped
+    enabled: no
+    masked: yes
+  when: baseline_time_sync_service != 'systemd-timesyncd'

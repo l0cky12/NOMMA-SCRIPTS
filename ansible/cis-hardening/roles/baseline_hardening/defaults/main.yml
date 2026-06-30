@@ -27,6 +27,7 @@ admin_password_hash: "{{ vault_admin_password_hash | default('password' | passwo
 #   sudo                 -> sudo
 baseline_packages:
   - apparmor
+  - apparmor-utils
   - fail2ban
   - net-tools
   - ufw
@@ -49,7 +50,63 @@ baseline_packages:
   - chrony            # NTP time sync (replaces ntp/systemd-timesyncd)
   - libpam-pwquality  # CIS 5.4.1 - password quality enforcement
 
+# ── Time synchronization ─────────────────────────────────────
+# Supported values:
+#   chrony
+#   systemd-timesyncd
+#
+# Default: chrony is the selected enterprise time service, so
+# systemd-timesyncd is masked by default to avoid competing NTP clients.
+baseline_time_sync_service: chrony
+baseline_systemd_timesyncd_service: systemd-timesyncd.service
+
+# CIS-style chrony dedicated service user control.
+#
+# Description:
+#   The chrony package is installed with a dedicated user account _chrony. This
+#   account is granted the access required by the chronyd service.
+#
+# Rationale:
+#   The chronyd service should run with only the required privileges.
+#
+# Remediation:
+#   Add or edit the user line to /etc/chrony/chrony.conf or a file ending in
+#   .conf in /etc/chrony/conf.d/:
+#     user _chrony
+#   OR if another time synchronization service is in use, remove chrony:
+#     apt purge chrony
+#     apt autoremove chrony
+#
+# CIS checks (condition: all):
+#   Directory /etc/chrony/conf.d/ exists
+#   Any .conf file in /etc/chrony/conf.d/ contains: user\s*_chrony
+#   /etc/chrony/chrony.conf contains: user\s*_chrony
+baseline_chrony_config_path: /etc/chrony/chrony.conf
+baseline_chrony_conf_d_path: /etc/chrony/conf.d
+baseline_chrony_conf_d_user_config_path: "{{ baseline_chrony_conf_d_path }}/99-cis-user.conf"
+baseline_chrony_user: _chrony
+baseline_chrony_group: _chrony
+baseline_chrony_autoremove: yes
+
 # ── Packages to remove ───────────────────────────────────────
 # Insecure or unnecessary clients removed during baseline.
+#
+# Description:
+#   The inetutils-telnet package contains the telnet client, which allows users
+#   to start connections to other systems via the telnet protocol.
+#
+# Rationale:
+#   The telnet protocol is insecure and unencrypted. The use of an unencrypted
+#   transmission medium could allow an unauthorized user to steal credentials.
+#   The ssh package provides an encrypted session and stronger security and is
+#   included in most Linux distributions.
+#
+# Remediation:
+#   apt purge telnet
+#   apt purge inetutils-telnet
+#
+# CIS check:
+#   dpkg-query -s telnet inetutils-telnet does not report "install ok installed"
 baseline_packages_remove:
   - telnet            # telnet client — sends credentials in cleartext
+  - inetutils-telnet  # GNU inetutils telnet client — also insecure

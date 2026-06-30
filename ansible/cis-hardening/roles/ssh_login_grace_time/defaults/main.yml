@@ -1,0 +1,14 @@
+---
+# roles/ssh_login_grace_time/defaults/main.yml
+#
+# SSH LoginGraceTime hardening.
+#
+# Sets the time allowed for successful authentication to the SSH server.
+# A shorter window reduces the exposure to slowloris-style attacks and
+# unauthenticated connection exhaustion.
+
+# Login grace time in seconds.
+ssh_login_grace_time_seconds: 60
+
+# Path to the main sshd configuration file.
+ssh_login_grace_time_sshd_config: /etc/ssh/sshd_config

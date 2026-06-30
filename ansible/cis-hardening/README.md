@@ -53,8 +53,11 @@ ansible-playbook -i inventory/hosts.yml playbooks/site.yml --limit NOMMA-ROOTCA0
 | 1.7.2 | `banner_permissions` | `cis-1.7.2` | /etc/issue.net permissions (root:root) |
 | — | `crontab_permissions` | `crontab_perms` | /etc/crontab root:root 0600 |
 | — | `cron_dir_permissions` | `cron_dir_perms` | Cron dirs root:root 0700 |
+| 5.2.4 | `ssh_key_only` | `cis-5.2.4` | Require SSH public-key authentication only |
 | 5.2.7 | `ssh_permit_root_login` | `cis-5.2.7` | Disable direct root SSH login |
 | 5.2.8 | `ssh_access` | `cis-5.2.8` | Restrict SSH to authorized users |
+| 5.2.13 | `ssh_login_grace_time` | `cis-5.2.13` | SSH login grace time 60 seconds |
+| 5.2.x | `ssh_max_auth_tries` | `cis-5.2.x` | SSH authentication attempts limited to 4 |
 | 5.2.12 | `ssh_idle_timeout` | `cis-5.2.12` | SSH idle timeout (15s × 3 = 45s) |
 | 5.2.14 | `ssh_macs` | `cis-5.2.14` | Remove weak MAC algorithms |
 | 5.2.15 | `ssh_maxstartups` | `cis-5.2.15` | Rate-limit unauthenticated SSH |
@@ -140,17 +143,20 @@ Roles run in the order defined in `playbooks/site.yml`:
 6. **banner_perms** — banner permissions
 7. **crontab_perms** — /etc/crontab permissions
 8. **cron_dir_perms** — cron dir permissions
-9. **ssh_access** — restrict SSH users
-10. **ssh_idle_timeout** — SSH timeout
-11. **ssh_disable_forwarding** — disable forwarding
-12. **ssh_macs** — remove weak MACs
-13. **ssh_maxstartups** — rate-limit SSH
-14. **ssh_permit_root_login** — disable root SSH
-15. **sudo_logfile** — sudo audit log
-16. **sudo_timeout** — sudo credential timeout
-17. **su_restriction** — restrict su
-18. **root_gid0** — only root has GID 0
-19. **root_account** — lock root account
+9. **ssh_key_only** — require public-key authentication only
+10. **ssh_access** — restrict SSH users
+11. **ssh_login_grace_time** — SSH login grace time
+12. **ssh_max_auth_tries** — limit SSH authentication attempts
+13. **ssh_idle_timeout** — SSH timeout
+14. **ssh_disable_forwarding** — disable forwarding
+15. **ssh_macs** — remove weak MACs
+16. **ssh_maxstartups** — rate-limit SSH
+17. **ssh_permit_root_login** — disable root SSH
+18. **sudo_logfile** — sudo audit log
+19. **sudo_timeout** — sudo credential timeout
+20. **su_restriction** — restrict su
+21. **root_gid0** — only root has GID 0
+22. **root_account** — lock root account
 
 Content is deployed before permissions are locked down. GRUB changes come before verification. SSH controls are grouped together. sudo/su controls are grouped. Account controls are last.
 

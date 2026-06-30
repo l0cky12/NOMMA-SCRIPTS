@@ -1,0 +1,14 @@
+---
+# roles/ssh_max_auth_tries/defaults/main.yml
+#
+# CIS 5.2.x - Ensure SSH MaxAuthTries is configured
+#
+# Rationale: Setting the MaxAuthTries parameter to a low number will minimize
+# the risk of successful brute force attacks to the SSH server. While the
+# recommended setting is 4, set the number based on site policy.
+
+# Maximum authentication attempts permitted per SSH connection.
+ssh_max_auth_tries_value: 4
+
+# Path to the main sshd configuration file.
+ssh_max_auth_tries_sshd_config: /etc/ssh/sshd_config

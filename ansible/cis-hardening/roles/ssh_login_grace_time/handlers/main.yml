@@ -1,0 +1,7 @@
+---
+# roles/ssh_login_grace_time/handlers/main.yml
+
+- name: Reload sshd
+  ansible.builtin.service:
+    name: ssh
+    state: reloaded

@@ -1,0 +1,83 @@
+---
+# roles/ssh_login_grace_time/tasks/main.yml
+#
+# Sets LoginGraceTime to 60 seconds in sshd_config.
+#
+# Idempotent: uses ansible.builtin.lineinfile. Safe to rerun.
+
+# ──────────────────────────────────────────────────────────
+# Pre-flight: verify sshd_config exists
+# ──────────────────────────────────────────────────────────
+
+- name: Check if sshd_config exists
+  ansible.builtin.stat:
+    path: "{{ ssh_login_grace_time_sshd_config }}"
+  register: ssh_login_grace_time_sshd_stat
+
+- name: Fail if sshd_config not found
+  ansible.builtin.assert:
+    that:
+      - ssh_login_grace_time_sshd_stat.stat.exists
+    fail_msg: >-
+      {{ ssh_login_grace_time_sshd_config }} not found. Ensure openssh-server is installed.
+    success_msg: "sshd_config found at {{ ssh_login_grace_time_sshd_config }}."
+
+# ──────────────────────────────────────────────────────────
+# Set LoginGraceTime
+# ──────────────────────────────────────────────────────────
+
+- name: Set LoginGraceTime to 60 seconds in sshd_config
+  ansible.builtin.lineinfile:
+    path: "{{ ssh_login_grace_time_sshd_config }}"
+    regexp: '^\s*#?\s*LoginGraceTime\s+.*$'
+    line: "LoginGraceTime {{ ssh_login_grace_time_seconds }}"
+    insertbefore: '^\s*(Include|Match)\s'
+    state: present
+    backup: yes
+    validate: 'sshd -t -f %s'
+  notify: Reload sshd
+
+# ──────────────────────────────────────────────────────────
+# Flush handlers so sshd reloads before verification
+# ──────────────────────────────────────────────────────────
+
+- name: Flush handlers
+  ansible.builtin.meta: flush_handlers
+
+# ──────────────────────────────────────────────────────────
+# Verification
+# ──────────────────────────────────────────────────────────
+
+- name: Read sshd_config for LoginGraceTime verification
+  ansible.builtin.command: grep -iE '^\s*LoginGraceTime\s+' {{ ssh_login_grace_time_sshd_config }}
+  register: ssh_login_grace_time_config_check
+  changed_when: false
+  failed_when: false
+
+- name: Verify LoginGraceTime directive is set
+  ansible.builtin.assert:
+    that:
+      - ssh_login_grace_time_config_check.stdout | length > 0
+    fail_msg: >-
+      LoginGraceTime directive not found in {{ ssh_login_grace_time_sshd_config }}.
+    success_msg: "LoginGraceTime directive is present in sshd_config."
+
+- name: Verify effective LoginGraceTime via sshd -T
+  ansible.builtin.command: sshd -T -f {{ ssh_login_grace_time_sshd_config }}
+  register: ssh_login_grace_time_effective
+  changed_when: false
+  failed_when: false
+
+- name: Assert LoginGraceTime is 60 seconds
+  ansible.builtin.assert:
+    that:
+      - "'logingracetime {{ ssh_login_grace_time_seconds }}' in ssh_login_grace_time_effective.stdout"
+    fail_msg: >-
+      LoginGraceTime is not {{ ssh_login_grace_time_seconds }} in effective config.
+      Run: sshd -T -f {{ ssh_login_grace_time_sshd_config }} | grep logingracetime
+    success_msg: "LoginGraceTime is {{ ssh_login_grace_time_seconds }} seconds."
+  when: ssh_login_grace_time_effective.rc == 0
+
+- name: Report SSH LoginGraceTime status
+  ansible.builtin.debug:
+    msg: "SSH LoginGraceTime set to {{ ssh_login_grace_time_seconds }} seconds."

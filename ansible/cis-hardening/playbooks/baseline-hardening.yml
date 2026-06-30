@@ -49,6 +49,7 @@
     #   sudo                 -> sudo
     baseline_packages:
       - apparmor
+      - apparmor-utils
       - fail2ban
       - net-tools
       - ufw
@@ -69,6 +70,26 @@
       - tree
       - lsof
 
+    # ── Packages to remove ───────────────────────────────────────
+    # Insecure or unnecessary clients removed during baseline.
+    #
+    # Description:
+    #   The inetutils-telnet package contains the telnet client, which allows users
+    #   to start connections to other systems via the telnet protocol.
+    #
+    # Rationale:
+    #   The telnet protocol is insecure and unencrypted. The use of an unencrypted
+    #   transmission medium could allow an unauthorized user to steal credentials.
+    #   The ssh package provides an encrypted session and stronger security and is
+    #   included in most Linux distributions.
+    #
+    # Remediation:
+    #   apt purge telnet
+    #   apt purge inetutils-telnet
+    baseline_packages_remove:
+      - telnet            # telnet client — sends credentials in cleartext
+      - inetutils-telnet  # GNU inetutils telnet client — also insecure
+
   tasks:
 
     # ──────────────────────────────────────────────────────────
@@ -84,6 +105,12 @@
       ansible.builtin.apt:
         name: "{{ baseline_packages }}"
         state: present
+
+    - name: Remove insecure telnet packages
+      ansible.builtin.apt:
+        name: "{{ baseline_packages_remove }}"
+        state: absent
+        purge: yes
 
     # ──────────────────────────────────────────────────────────
     # User creation
@@ -140,10 +167,10 @@
         append: yes
       loop: "{{ admin_users }}"
 
-    - name: Ensure sudo group has passwordless sudo (NOPASSWD)
+    - name: Ensure sudo group requires a password for sudo
       ansible.builtin.copy:
-        dest: /etc/sudoers.d/sudo-group-nopasswd
-        content: "%sudo ALL=(ALL) NOPASSWD: ALL\n"
+        dest: /etc/sudoers.d/sudo-group-require-pass
+        content: "%sudo ALL=(ALL:ALL) ALL\n"
         owner: root
         group: root
         mode: "0440"

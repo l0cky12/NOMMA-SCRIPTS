@@ -8,6 +8,11 @@
 # before requiring re-authentication. CIS recommends 15 minutes
 # or less to reduce the window for session hijacking.
 #
+# Rationale: Without (re-)authentication, users may access resources or perform
+# tasks for which they do not have authorization. When operating systems provide
+# the capability to escalate a functional capability, it is critical the user
+# (re-)authenticate.
+#
 # Idempotent: uses ansible.builtin.copy (content-based).
 # Safe to rerun.
 

@@ -4,18 +4,25 @@
 # CIS 1.7.1 - Ensure access to /etc/issue is configured
 # CIS 1.7.2 - Ensure access to /etc/issue.net is configured
 #
-# Sets root:root ownership and mode 0644 on both /etc/issue and
-# /etc/issue.net.  Resolves symlinks via readlink -e per CIS.
+# Description:
+#   The contents of /etc/issue are displayed to users prior to login for
+#   local terminals. The contents of /etc/issue.net are displayed prior to
+#   login for remote terminals.
+#
+# Rationale:
+#   If these files do not have the correct access configured, they could be
+#   modified by unauthorized users with incorrect or misleading information.
+#
+# Remediation:
+#   Sets root:root ownership and mode 0644 (u-x,go-wx) on /etc/issue and
+#   /etc/issue.net. Acceptable CIS modes are 0644, 0640, 0600, or 0400.
+#   Resolves symlinks via readlink -e per CIS.
 #
 # Usage:
 #   ansible-playbook -i inventory/hosts.yml playbooks/cis-1.7.1-1.7.2-banner-permissions.yml --ask-become-pass
 #
 # Check mode:
 #   ansible-playbook -i inventory/hosts.yml playbooks/cis-1.7.1-1.7.2-banner-permissions.yml --check --ask-become-pass
-#
-# To use a stricter mode (e.g., 0600):
-#   ansible-playbook -i inventory/hosts.yml playbooks/cis-1.7.1-1.7.2-banner-permissions.yml \
-#     -e "banner_perms_mode=0600" --ask-become-pass
 
 - name: CIS 1.7.1 + 1.7.2 - Permissions on login banner files
   hosts: linux_servers

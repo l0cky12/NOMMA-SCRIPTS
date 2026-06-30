@@ -1,0 +1,135 @@
+---
+# roles/ssh_key_only/tasks/main.yml
+#
+# CIS 5.2.4 - Ensure SSH password authentication is disabled
+#
+# Description:
+#   Require SSH public-key authentication and disable password-based
+#   and keyboard-interactive authentication methods.
+#
+# Rationale:
+#   Password-based authentication is vulnerable to brute-force attacks.
+#   Public key authentication provides stronger credential security and
+#   should be required for SSH access.
+#
+# Remediation:
+#   Set the following in /etc/ssh/sshd_config:
+#     PasswordAuthentication no
+#     PubkeyAuthentication yes
+#     KbdInteractiveAuthentication no
+#     ChallengeResponseAuthentication no
+#
+# Directives are placed BEFORE any Include or Match statements, as first
+# occurrence takes precedence in sshd_config.
+#
+# Idempotent: uses ansible.builtin.lineinfile with regexp match.
+# Safe to rerun.
+
+# ──────────────────────────────────────────────────────────
+# Pre-flight: verify sshd_config exists
+# ──────────────────────────────────────────────────────────
+
+- name: Check if sshd_config exists
+  ansible.builtin.stat:
+    path: "{{ ssh_key_only_sshd_config }}"
+  register: ssh_key_only_sshd_stat
+
+- name: Fail if sshd_config not found
+  ansible.builtin.assert:
+    that:
+      - ssh_key_only_sshd_stat.stat.exists
+    fail_msg: >-
+      {{ ssh_key_only_sshd_config }} not found. Ensure openssh-server is installed.
+    success_msg: "sshd_config found at {{ ssh_key_only_sshd_config }}."
+
+# ──────────────────────────────────────────────────────────
+# Configure SSH public-key-only authentication
+# ──────────────────────────────────────────────────────────
+
+- name: Set SSH authentication directives in sshd_config
+  ansible.builtin.lineinfile:
+    path: "{{ ssh_key_only_sshd_config }}"
+    regexp: "^\\s*#?\\s*{{ item.key }}\\s+.*$"
+    line: "{{ item.key }} {{ item.value }}"
+    insertbefore: '^\s*(Include|Match)\s'
+    state: present
+    backup: yes
+    validate: 'sshd -t -f %s'
+  loop:
+    - key: PasswordAuthentication
+      value: "no"
+    - key: PubkeyAuthentication
+      value: "yes"
+    - key: KbdInteractiveAuthentication
+      value: "no"
+    - key: ChallengeResponseAuthentication
+      value: "no"
+  notify: Reload sshd
+
+# ──────────────────────────────────────────────────────────
+# Flush handlers so sshd reloads before verification
+# ──────────────────────────────────────────────────────────
+
+- name: Flush handlers
+  ansible.builtin.meta: flush_handlers
+
+# ──────────────────────────────────────────────────────────
+# Verification
+# ──────────────────────────────────────────────────────────
+
+- name: Verify effective SSH config via sshd -T
+  ansible.builtin.command: sshd -T -f {{ ssh_key_only_sshd_config }}
+  register: ssh_key_only_effective
+  changed_when: false
+  failed_when: false
+
+- name: Fail if effective SSH config cannot be read
+  ansible.builtin.assert:
+    that:
+      - ssh_key_only_effective.rc == 0
+    fail_msg: >-
+      Unable to read effective SSH config.
+      Run: sshd -T -f {{ ssh_key_only_sshd_config }}
+    success_msg: "Effective SSH config loaded successfully."
+
+- name: Verify effective SSH authentication settings
+  ansible.builtin.assert:
+    that:
+      - "item.line in (ssh_key_only_effective.stdout | lower)"
+    fail_msg: >-
+      Effective SSH setting '{{ item.name }}' does not match '{{ item.expected }}'.
+      Run: sshd -T -f {{ ssh_key_only_sshd_config }} | grep -Ei
+      '^(passwordauthentication|pubkeyauthentication|kbdinteractiveauthentication) '
+    success_msg: "Effective SSH setting '{{ item.name }}' is '{{ item.expected }}'."
+  loop:
+    - name: PasswordAuthentication
+      expected: "no"
+      line: "passwordauthentication no"
+    - name: PubkeyAuthentication
+      expected: "yes"
+      line: "pubkeyauthentication yes"
+    - name: KbdInteractiveAuthentication
+      expected: "no"
+      line: "kbdinteractiveauthentication no"
+
+- name: Read sshd_config for ChallengeResponseAuthentication verification
+  ansible.builtin.command: grep -Ei '^ChallengeResponseAuthentication[[:space:]]+no$' {{ ssh_key_only_sshd_config }}
+  register: ssh_key_only_challenge_response_check
+  changed_when: false
+  failed_when: false
+
+- name: Verify ChallengeResponseAuthentication is disabled in sshd_config
+  ansible.builtin.assert:
+    that:
+      - ssh_key_only_challenge_response_check.rc == 0
+    fail_msg: >-
+      ChallengeResponseAuthentication no was not found in {{ ssh_key_only_sshd_config }}.
+      Run: grep -Ei '^ChallengeResponseAuthentication[[:space:]]+no$' {{ ssh_key_only_sshd_config }}
+    success_msg: "ChallengeResponseAuthentication is disabled in sshd_config."
+
+- name: Report SSH key-only authentication status
+  ansible.builtin.debug:
+    msg: >-
+      SSH public-key-only authentication configured. PasswordAuthentication=no,
+      PubkeyAuthentication=yes, KbdInteractiveAuthentication=no,
+      ChallengeResponseAuthentication=no.

@@ -1,0 +1,7 @@
+---
+# roles/ssh_key_only/defaults/main.yml
+#
+# CIS 5.2.4 - Ensure SSH password authentication is disabled
+
+# Path to the main sshd configuration file.
+ssh_key_only_sshd_config: /etc/ssh/sshd_config

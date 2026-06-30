@@ -1,8 +1,28 @@
 ---
 # roles/banner_permissions/defaults/main.yml
 #
-# Defaults for CIS 1.7.1 (/etc/issue) and 1.7.2 (/etc/issue.net)
-# Ensure access to login banner files is configured.
+# CIS 1.7.1 - Ensure access to /etc/issue is configured
+# CIS 1.7.2 - Ensure access to /etc/issue.net is configured
+#
+# Description:
+#   The contents of /etc/issue are displayed to users prior to login for
+#   local terminals. The contents of /etc/issue.net are displayed prior to
+#   login for remote terminals.
+#
+# Rationale:
+#   If these files do not have the correct access configured, they could be
+#   modified by unauthorized users with incorrect or misleading information.
+#
+# Remediation:
+#   Run the following commands to set mode, owner, and group on each file:
+#     chown root:root $(readlink -e /etc/issue)
+#     chmod u-x,go-wx $(readlink -e /etc/issue)
+#     chown root:root $(readlink -e /etc/issue.net)
+#     chmod u-x,go-wx $(readlink -e /etc/issue.net)
+#
+# CIS check:
+#   stat -L "%n %a %u %U %g %G" /etc/issue ->
+#   owner=root group=root mode=644|640|600|400
 
 # ── Files to harden ──────────────────────────────────────────
 banner_perms_files:

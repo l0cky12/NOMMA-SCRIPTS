@@ -3,9 +3,18 @@
 #
 # CIS 1.6.4 - Ensure permissions on /etc/motd are configured
 #
-# Sets root:root ownership and mode 0644 on /etc/motd, or removes
-# the file entirely.  Handles symlinks via readlink -e per the
-# CIS remediation guidance.
+# Description:
+#   The contents of the /etc/motd file are displayed to users after login and
+#   function as a message of the day for authenticated users.
+#
+# Rationale:
+#   If /etc/motd does not have the correct access configured, it could be
+#   modified by unauthorized users with incorrect or misleading information.
+#
+# Remediation:
+#   Sets root:root ownership and mode 0644 (u-x,go-wx) on /etc/motd,
+#   or removes the file entirely. Handles symlinks via readlink -e per the
+#   CIS remediation guidance.
 #
 # Usage:
 #   ansible-playbook -i inventory/hosts.yml playbooks/cis-1.6.4-motd-permissions.yml --ask-become-pass
@@ -16,10 +25,6 @@
 # To remove /etc/motd instead of enforcing permissions:
 #   ansible-playbook -i inventory/hosts.yml playbooks/cis-1.6.4-motd-permissions.yml \
 #     -e "motd_perms_ensure_present=false" --ask-become-pass
-#
-# To use a stricter mode (e.g., 0600):
-#   ansible-playbook -i inventory/hosts.yml playbooks/cis-1.6.4-motd-permissions.yml \
-#     -e "motd_perms_mode=0600" --ask-become-pass
 
 - name: CIS 1.6.4 - Permissions on /etc/motd
   hosts: linux_servers

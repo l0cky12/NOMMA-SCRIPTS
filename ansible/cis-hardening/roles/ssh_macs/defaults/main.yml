@@ -10,20 +10,17 @@ ssh_weak_macs:
   - hmac-md5
   - hmac-md5-96
   - hmac-ripemd160
+  - hmac-sha1
   - hmac-sha1-96
   - umac-64@openssh.com
+  - umac-128@openssh.com
   - hmac-md5-etm@openssh.com
   - hmac-md5-96-etm@openssh.com
   - hmac-ripemd160-etm@openssh.com
+  - hmac-sha1-etm@openssh.com
   - hmac-sha1-96-etm@openssh.com
   - umac-64-etm@openssh.com
   - umac-128-etm@openssh.com
-  # CVE-2023-48795 (Terrapin attack) — exclude these ETM MACs
-  # until the CVE has been reviewed and patched in your environment.
-  # Remove these from the list if openssh has been patched.
-  - hmac-sha1-etm@openssh.com
-  - hmac-sha2-256-etm@openssh.com
-  - hmac-sha2-512-etm@openssh.com
 
 # Path to the main sshd configuration file.
 ssh_macs_sshd_config: /etc/ssh/sshd_config

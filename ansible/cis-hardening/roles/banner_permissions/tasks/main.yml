@@ -4,9 +4,19 @@
 # CIS 1.7.1 - Ensure access to /etc/issue is configured
 # CIS 1.7.2 - Ensure access to /etc/issue.net is configured
 #
-# Sets owner root:root and mode (0644 by default) on both
-# /etc/issue and /etc/issue.net.  Resolves symlinks with
-# readlink -e per the CIS remediation guidance.
+# Description:
+#   The contents of /etc/issue are displayed to users prior to login for
+#   local terminals. The contents of /etc/issue.net are displayed prior to
+#   login for remote terminals.
+#
+# Rationale:
+#   If these files do not have the correct access configured, they could be
+#   modified by unauthorized users with incorrect or misleading information.
+#
+# Remediation:
+#   Enforce root:root ownership and mode u-x,go-wx (0644) on /etc/issue
+#   and /etc/issue.net, or any acceptable CIS mode (0644, 0640, 0600, 0400).
+#   Resolves symlinks with readlink -e per the CIS remediation guidance.
 #
 # Idempotent: ansible.builtin.file only changes when state differs.
 
