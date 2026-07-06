@@ -43,3 +43,29 @@ GHI9012345678,1003
 
 ## Log Output
 Logs are written to `C:\ProgramData\Intune\rename-pc.log`
+---
+
+# Windows DHCP Server Scripts
+
+Folder: `powershell/windows-dhcp-server/`
+
+Contains Windows Server DHCP role automation scripts imported from `l0cky12/windows-server-powershell`, including:
+
+- DHCP Server role installation and authorization
+- Company DHCP scope creation and options
+- Exclusions and reservations
+- Scope and lease reporting
+- Lease search/export
+- DHCP backup and restore
+- Health checks and low-address reports
+- DHCP service restart and safe scope removal
+
+Start with:
+
+```powershell
+cd .\windows-dhcp-server
+.\Configure-DhcpServer.ps1
+```
+
+Review `windows-dhcp-server/scripts/CompanyDhcpConfig.ps1` before production use.
+
