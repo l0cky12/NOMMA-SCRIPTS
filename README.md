@@ -12,6 +12,7 @@ This repository contains automation and infrastructure-as-code for NOMMA IT oper
 
 - **PKI Infrastructure** — Two-tier Certificate Authority (Root CA + Issuing CA) deployed via Ansible
 - **PowerShell Automation** — PC rename scripts for Autopilot enrollment and other Windows automation tasks
+- **Bash Utilities** — Google Admin/GAM and CSV helper scripts
 
 ---
 
@@ -37,8 +38,14 @@ nomma-automation/
 │       ├── roles/
 │       └── README.md
 │
+├── bash/                        ← Linux/macOS/admin helper scripts
+│   ├── combine-autopilot-csv.sh — Combine Autopilot CSV exports
+│   ├── find-chromebook-by-asset-tag.sh — Lookup Chromebook serial/model by asset tag using GAM
+│   └── README.md                — Bash script documentation
+│
 └── powershell/                  ← Windows automation scripts
     ├── rename-pc.ps1            — Auto-rename PCs during Autopilot enrollment
+    ├── windows-dhcp-server/     — Windows DHCP Server automation scripts
     └── README.md                — Script documentation
 ```
 
@@ -89,6 +96,21 @@ Renames computers during Autopilot enrollment based on serial number and asset t
 **Example:** Serial `ABC1234567890` + AssetTag `1001` → `L5-567890-1001`
 
 See [`powershell/README.md`](powershell/README.md) for full documentation.
+
+---
+
+## Bash Scripts
+
+### find-chromebook-by-asset-tag.sh
+
+Uses GAM to search Google Admin ChromeOS devices by asset tag and print the matching laptop serial number and model number.
+
+```bash
+cd bash/
+./find-chromebook-by-asset-tag.sh 12345
+```
+
+See [`bash/README.md`](bash/README.md) for full documentation.
 
 ---
 
