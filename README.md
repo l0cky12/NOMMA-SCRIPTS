@@ -103,11 +103,11 @@ See [`powershell/README.md`](powershell/README.md) for full documentation.
 
 ### find-chromebook-by-asset-tag.sh
 
-Uses GAM to search Google Admin ChromeOS devices by asset tag and print the matching laptop serial number and model number.
+Interactive GAM lookup of Google Admin ChromeOS devices by 4-digit asset tag. Prints serial number, model, and device ID, then logs confirmed results to `device_lookup_results.csv`.
 
 ```bash
 cd bash/
-./find-chromebook-by-asset-tag.sh 12345
+./find-chromebook-by-asset-tag.sh
 ```
 
 See [`bash/README.md`](bash/README.md) for full documentation.

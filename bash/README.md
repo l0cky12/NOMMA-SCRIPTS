@@ -14,28 +14,27 @@ Combines Windows Autopilot CSV files into one clean Intune-ready CSV.
 
 ## find-chromebook-by-asset-tag.sh
 
-Uses GAM to search Google Admin ChromeOS devices by asset tag and print the laptop serial number and model number.
+Interactive loop that uses GAM to look up Google Admin ChromeOS devices by
+4-digit asset tag, prints the serial number / model / device ID, and logs
+confirmed results to a CSV file (`device_lookup_results.csv` by default).
+
+For each lookup, press Enter at the confirmation prompt to save the asset
+tag, serial number, and model — or type anything else to save only the asset
+tag. Duplicate rows require explicit confirmation. Quit with `Ctrl+C`.
 
 Requirements:
 
 - GAM/GAMADV-XTD3 installed and authenticated as a Google Workspace admin
 - Permission to read ChromeOS devices in Google Admin
-- `python3` available for CSV parsing
 
-Interactive use:
+Run it:
 
 ```bash
 ./find-chromebook-by-asset-tag.sh
 ```
 
-Pass an asset tag directly:
+If GAM is installed somewhere custom, or you want a different CSV file:
 
 ```bash
-./find-chromebook-by-asset-tag.sh 12345
-```
-
-If GAM is installed somewhere custom:
-
-```bash
-GAM=/path/to/gam ./find-chromebook-by-asset-tag.sh 12345
+GAM=/path/to/gam OUTPUT_CSV=/path/to/results.csv ./find-chromebook-by-asset-tag.sh
 ```
