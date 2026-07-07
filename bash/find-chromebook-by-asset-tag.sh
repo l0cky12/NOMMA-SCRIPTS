@@ -111,6 +111,33 @@ csv_escape() {
     fi
 }
 
+# find_gam -- resolve GAM_BIN to a runnable executable. Interactive shells
+# often reach GAM through an alias (e.g. `alias gam=~/bin/gam7/gam`), which
+# scripts cannot see, so when the default name isn't in PATH we probe the
+# standard GAM/GAMADV-XTD3 install locations before giving up.
+find_gam() {
+    local candidate
+    if command -v "$GAM_BIN" >/dev/null 2>&1; then
+        return 0
+    fi
+    # Only auto-probe for the default name; an explicit GAM=/path override
+    # that doesn't exist should fail loudly rather than silently switch.
+    [[ $GAM_BIN == gam ]] || return 1
+    for candidate in \
+        "$HOME/bin/gam7/gam" \
+        "$HOME/bin/gam/gam" \
+        "$HOME/bin/gamadv-xtd3/gam" \
+        "$HOME/GAM/gam" \
+        /usr/local/bin/gam \
+        /opt/gam/gam; do
+        if [[ -x $candidate ]]; then
+            GAM_BIN=$candidate
+            return 0
+        fi
+    done
+    return 1
+}
+
 # find_column NAME -- print the index of NAME in HEADER_FIELDS (case
 # insensitive) so we never depend on GAM's column order. Fails if absent.
 find_column() {
@@ -257,9 +284,10 @@ display_device() {
 # Main loop
 # ---------------------------------------------------------------------------
 main() {
-    if ! command -v "$GAM_BIN" >/dev/null 2>&1; then
-        echo "ERROR: GAM ('${GAM_BIN}') is not installed or not in PATH." >&2
-        echo "Install GAM, or point at it with: GAM=/path/to/gam $0" >&2
+    if ! find_gam; then
+        echo "ERROR: GAM ('${GAM_BIN}') was not found in PATH or in the usual install locations." >&2
+        echo "Note: shell aliases (e.g. 'alias gam=~/bin/gam7/gam') are not visible to scripts." >&2
+        echo "Point at the binary directly with: GAM=/path/to/gam $0" >&2
         exit 1
     fi
 
