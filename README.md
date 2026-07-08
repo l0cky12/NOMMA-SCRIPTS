@@ -13,6 +13,7 @@ This repository contains automation and infrastructure-as-code for NOMMA IT oper
 - **PKI Infrastructure** — Two-tier Certificate Authority (Root CA + Issuing CA) deployed via Ansible
 - **PowerShell Automation** — PC rename scripts for Autopilot enrollment and other Windows automation tasks
 - **Bash Utilities** — Google Admin/GAM and CSV helper scripts
+- **Python Scripts** — Google Admin → Snipe-IT ChromeOS asset sync
 
 ---
 
@@ -42,6 +43,10 @@ nomma-automation/
 │   ├── combine-autopilot-csv.sh — Combine Autopilot CSV exports
 │   ├── find-chromebook-by-asset-tag.sh — Lookup Chromebook serial/model by asset tag using GAM
 │   └── README.md                — Bash script documentation
+│
+├── python/                      ← Python automation scripts
+│   ├── chromeos-snipeit-sync/   — Add-only Google Admin ChromeOS → Snipe-IT sync
+│   └── README.md                — Python script documentation
 │
 └── powershell/                  ← Windows automation scripts
     ├── rename-pc.ps1            — Auto-rename PCs during Autopilot enrollment
@@ -111,6 +116,25 @@ cd bash/
 ```
 
 See [`bash/README.md`](bash/README.md) for full documentation.
+
+---
+
+## Python Scripts
+
+### chromeos-snipeit-sync
+
+Add-only sync of ACTIVE Google Admin ChromeOS devices into Snipe-IT: creates
+missing assets (serial, asset tag, model, status "Ready to Deploy") and never
+updates existing ones. Supports interactive and cron modes, dry-run, CSV run
+reports, and problem emails.
+
+```bash
+cd python/chromeos-snipeit-sync/
+python3 -m venv venv && venv/bin/pip install -r requirements.txt
+venv/bin/python chromeos_snipeit_sync.py --dry-run
+```
+
+See [`python/chromeos-snipeit-sync/README.md`](python/chromeos-snipeit-sync/README.md) for full documentation.
 
 ---
 

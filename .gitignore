@@ -49,3 +49,13 @@ __pycache__/
 # ── Vault password file ──────────────────────────────────────────────
 vault-password.txt
 .vault-password.txt
+
+# ── ChromeOS → Snipe-IT sync ─────────────────────────────────────────
+# Filled-in env files and service-account keys — NEVER commit these
+python/chromeos-snipeit-sync/*.env
+!python/chromeos-snipeit-sync/*.env.example
+python/chromeos-snipeit-sync/service-account*.json
+# Runtime artifacts
+python/chromeos-snipeit-sync/reports/
+python/chromeos-snipeit-sync/model-map.json
+python/chromeos-snipeit-sync/venv/
