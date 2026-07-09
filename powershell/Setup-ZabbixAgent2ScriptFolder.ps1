@@ -132,26 +132,36 @@ try {
     Ensure-Directory -Path $TargetFolder
 
     $sourcePath = Get-RepoSourcePath -RepoUrl $SourceRepoUrl -Branch $SourceRepoBranch -WorkDir $WorkingDirectory -RelativePath $SourceRepoPath
-    $copied = Copy-PowerShellScripts -From $sourcePath -To $TargetFolder -KeepExisting:$PreserveExistingFiles
+    try {
+        $copied = Copy-PowerShellScripts -From $sourcePath -To $TargetFolder -KeepExisting:$PreserveExistingFiles
 
-    if (-not (Test-Path -LiteralPath $TargetFolder)) {
-        throw "Target folder was not created: $TargetFolder"
+        if (-not (Test-Path -LiteralPath $TargetFolder)) {
+            throw "Target folder was not created: $TargetFolder"
+        }
+
+        $targetItems = Get-ChildItem -LiteralPath $TargetFolder -Recurse -File -Filter '*.ps1'
+        if (-not $targetItems) {
+            throw "No PowerShell scripts were found in the target folder: $TargetFolder"
+        }
+
+        Write-Info 'Verification: target folder exists.'
+        Write-Info "Verification: found $($targetItems.Count) PowerShell script(s) in the target folder."
+
+        if ($copied.Count -gt 0) {
+            Write-Info 'Copied files:'
+            $copied | ForEach-Object { Write-Host " - $_" }
+        }
+        else {
+            Write-Info 'No files were copied during this run.'
+        }
     }
-
-    $targetItems = Get-ChildItem -LiteralPath $TargetFolder -Recurse -File -Filter '*.ps1'
-    if (-not $targetItems) {
-        throw "No PowerShell scripts were found in the target folder: $TargetFolder"
-    }
-
-    Write-Info 'Verification: target folder exists.'
-    Write-Info "Verification: found $($targetItems.Count) PowerShell script(s) in the target folder."
-
-    if ($copied.Count -gt 0) {
-        Write-Info 'Copied files:'
-        $copied | ForEach-Object { Write-Host " - $_" }
-    }
-    else {
-        Write-Info 'No files were copied during this run.'
+    finally {
+        if (Test-Path -LiteralPath $WorkingDirectory) {
+            Write-Info "Cleaning up working directory: $WorkingDirectory"
+            if ($PSCmdlet.ShouldProcess($WorkingDirectory, 'Remove cloned repository')) {
+                Remove-Item -LiteralPath $WorkingDirectory -Recurse -Force
+            }
+        }
     }
 
     exit 0
