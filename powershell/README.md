@@ -43,6 +43,21 @@ GHI9012345678,1003
 
 ## Log Output
 Logs are written to `C:\ProgramData\Intune\rename-pc.log`
+
+---
+
+# NOMMA DC / CA Diagnostics
+
+Script: `Invoke-NOMMA-DC-CA-Diagnostics.ps1`
+
+Runs a quick health check for which domain controller and certificate authority a Windows server is using. It queries secure channel status, current logon server, Kerberos tickets, and several `certutil` checks against `NOMMA`, `NOMMA-DC2023`, and `NOMMA-DC05`.
+
+### Usage
+```powershell
+cd .\powershell
+.\Invoke-NOMMA-DC-CA-Diagnostics.ps1
+```
+
 ---
 
 # Windows DHCP Server Scripts
