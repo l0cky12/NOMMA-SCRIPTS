@@ -51,7 +51,7 @@ nomma-automation/
 └── powershell/                  ← Windows automation scripts
 │   ├── Windows-AD-Server/       ← AD / DC / CA scripts
 │   ├── Windows-Endpoint-Management/ ← Autopilot / rename scripts
-│   ├── windows-dhcp-server/     ← Windows DHCP Server automation scripts
+│   ├── Windows-DHCP-Server/     ← Windows DHCP Server automation scripts
 │   ├── Zabbix/                  ← Zabbix / monitoring helpers
 │   └── README.md                ← Script documentation
 ```
@@ -112,7 +112,7 @@ Renames computers during Autopilot enrollment based on serial number and asset t
 
 **Example:** Serial `ABC1234567890` + AssetTag `1001` → `L5-567890-1001`
 
-### windows-dhcp-server/
+### Windows-DHCP-Server/
 
 Windows DHCP Server automation scripts for role installation, scopes, reservations, backups, health checks, and documentation.
 

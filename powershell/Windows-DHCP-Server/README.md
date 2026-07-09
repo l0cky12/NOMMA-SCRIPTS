@@ -7,7 +7,7 @@ Source repo imported from: https://github.com/l0cky12/windows-server-powershell
 ## Layout
 
 ```text
-powershell/windows-dhcp-server/
+powershell/Windows-DHCP-Server/
 ├── Configure-DhcpServer.ps1
 └── scripts/
     ├── CompanyDhcpConfig.ps1

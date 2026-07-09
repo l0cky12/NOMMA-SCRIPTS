@@ -7,7 +7,7 @@ There are no standalone `.ps1` files in this folder root.
 
 - `Windows-AD-Server/` — Active Directory / DC / CA cleanup and diagnostics
 - `Windows-Endpoint-Management/` — endpoint rename and Autopilot-related scripts
-- `windows-dhcp-server/` — Windows DHCP Server automation scripts
+- `Windows-DHCP-Server/` — Windows DHCP Server automation scripts
 - `Zabbix/` — Zabbix Agent / monitoring helper scripts
 
 ## Quick map
@@ -19,7 +19,7 @@ There are no standalone `.ps1` files in this folder root.
 ### `Windows-Endpoint-Management/`
 - `rename-pc.ps1`
 
-### `windows-dhcp-server/`
+### `Windows-DHCP-Server/`
 - `Configure-DhcpServer.ps1`
 - `scripts/` — numbered DHCP helper scripts
 
@@ -44,6 +44,6 @@ cd .\Zabbix
 ```
 
 ```powershell
-cd .\windows-dhcp-server
+cd .\Windows-DHCP-Server
 .\Configure-DhcpServer.ps1
 ```
