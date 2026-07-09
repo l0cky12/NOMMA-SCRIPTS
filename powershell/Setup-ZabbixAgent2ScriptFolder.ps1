@@ -1,15 +1,19 @@
 # Setup-ZabbixAgent2ScriptFolder.ps1
-# Creates the Zabbix Agent 2 script folder, copies PowerShell scripts into it, and verifies the result.
+# Clones the NOMMA Zabbix Windows scripts repo, copies every PowerShell script from scripts/windows
+# into the Zabbix Agent 2 script folder, and verifies the result.
 #
 # Example:
 #   .\Setup-ZabbixAgent2ScriptFolder.ps1
-#   .\Setup-ZabbixAgent2ScriptFolder.ps1 -SourceDirectory "C:\Temp\ZabbixScripts"
 #   .\Setup-ZabbixAgent2ScriptFolder.ps1 -WhatIf
+#   .\Setup-ZabbixAgent2ScriptFolder.ps1 -SourceRepoUrl "https://github.com/l0cky12/zabbix-windows-ad-dhcp-dns-monitoring.git" -SourceRepoPath "scripts/windows"
 
 [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'Medium')]
 param(
     [string]$TargetFolder = 'C:\Program Files\Zabbix Agent 2\Script',
-    [string]$SourceDirectory = $PSScriptRoot,
+    [string]$SourceRepoUrl = 'https://github.com/l0cky12/zabbix-windows-ad-dhcp-dns-monitoring.git',
+    [string]$SourceRepoBranch = 'main',
+    [string]$SourceRepoPath = 'scripts/windows',
+    [string]$WorkingDirectory = (Join-Path $env:TEMP 'zabbix-windows-scripts-src'),
     [switch]$PreserveExistingFiles
 )
 
@@ -29,6 +33,12 @@ function Assert-Administrator {
     }
 }
 
+function Assert-GitAvailable {
+    if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
+        throw 'git is required but was not found in PATH.'
+    }
+}
+
 function Ensure-Directory {
     param([string]$Path)
 
@@ -40,6 +50,36 @@ function Ensure-Directory {
     }
 }
 
+function Get-RepoSourcePath {
+    param(
+        [string]$RepoUrl,
+        [string]$Branch,
+        [string]$WorkDir,
+        [string]$RelativePath
+    )
+
+    if (Test-Path -LiteralPath $WorkDir) {
+        Write-Info "Removing existing working directory: $WorkDir"
+        if ($PSCmdlet.ShouldProcess($WorkDir, 'Remove old working directory')) {
+            Remove-Item -LiteralPath $WorkDir -Recurse -Force
+        }
+    }
+
+    Ensure-Directory -Path $WorkDir
+
+    Write-Info "Cloning $RepoUrl (branch: $Branch)"
+    if ($PSCmdlet.ShouldProcess($RepoUrl, 'Clone repository')) {
+        git clone --depth 1 --branch $Branch $RepoUrl $WorkDir | Out-Null
+    }
+
+    $sourcePath = Join-Path -Path $WorkDir -ChildPath $RelativePath
+    if (-not (Test-Path -LiteralPath $sourcePath)) {
+        throw "Repository path not found: $sourcePath"
+    }
+
+    return $sourcePath
+}
+
 function Copy-PowerShellScripts {
     param(
         [string]$From,
@@ -47,11 +87,7 @@ function Copy-PowerShellScripts {
         [switch]$KeepExisting
     )
 
-    if (-not (Test-Path -LiteralPath $From)) {
-        throw "SourceDirectory not found: $From"
-    }
-
-    $scripts = Get-ChildItem -LiteralPath $From -File -Filter '*.ps1'
+    $scripts = Get-ChildItem -LiteralPath $From -Recurse -File -Filter '*.ps1'
     if (-not $scripts) {
         Write-Info "No .ps1 files found in $From"
         return @()
@@ -59,18 +95,23 @@ function Copy-PowerShellScripts {
 
     $copied = New-Object System.Collections.Generic.List[string]
     foreach ($script in $scripts) {
-        $destination = Join-Path -Path $To -ChildPath $script.Name
+        $relative = $script.FullName.Substring($From.Length).TrimStart('\\','/')
+        $destination = Join-Path -Path $To -ChildPath $relative
+        $destinationDir = Split-Path -Path $destination -Parent
+
+        Ensure-Directory -Path $destinationDir
+
         if ($script.FullName -eq $destination) {
             Write-Info "Skipping source file already in target folder: $($script.Name)"
             continue
         }
 
         if ($KeepExisting -and (Test-Path -LiteralPath $destination)) {
-            Write-Info "Skipping existing file: $($script.Name)"
+            Write-Info "Skipping existing file: $relative"
             continue
         }
 
-        Write-Info "Copying $($script.Name) to $destination"
+        Write-Info "Copying $relative to $destination"
         if ($PSCmdlet.ShouldProcess($destination, 'Copy script')) {
             Copy-Item -LiteralPath $script.FullName -Destination $destination -Force
         }
@@ -82,17 +123,22 @@ function Copy-PowerShellScripts {
 
 try {
     Assert-Administrator
+    Assert-GitAvailable
     Write-Info "Target folder: $TargetFolder"
-    Write-Info "Source directory: $SourceDirectory"
+    Write-Info "Repo: $SourceRepoUrl"
+    Write-Info "Branch: $SourceRepoBranch"
+    Write-Info "Repo path: $SourceRepoPath"
 
     Ensure-Directory -Path $TargetFolder
-    $copied = Copy-PowerShellScripts -From $SourceDirectory -To $TargetFolder -KeepExisting:$PreserveExistingFiles
+
+    $sourcePath = Get-RepoSourcePath -RepoUrl $SourceRepoUrl -Branch $SourceRepoBranch -WorkDir $WorkingDirectory -RelativePath $SourceRepoPath
+    $copied = Copy-PowerShellScripts -From $sourcePath -To $TargetFolder -KeepExisting:$PreserveExistingFiles
 
     if (-not (Test-Path -LiteralPath $TargetFolder)) {
         throw "Target folder was not created: $TargetFolder"
     }
 
-    $targetItems = Get-ChildItem -LiteralPath $TargetFolder -File -Filter '*.ps1'
+    $targetItems = Get-ChildItem -LiteralPath $TargetFolder -Recurse -File -Filter '*.ps1'
     if (-not $targetItems) {
         throw "No PowerShell scripts were found in the target folder: $TargetFolder"
     }
