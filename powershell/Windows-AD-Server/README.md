@@ -45,6 +45,18 @@ not be determined) is **flagged for manual review instead of deleted**.
 with `Uninstall-ADDSDomainController` instead. The script hard-stops if the
 target answers on LDAP (TCP 389); this cannot be overridden.
 
+## Related diagnostics
+
+### `Invoke-NOMMA-DC-CA-Diagnostics.ps1`
+Runs secure channel, logon server, Kerberos, and `certutil` checks to show
+which DC and CA a server is using.
+
+### Usage
+
+```powershell
+.\Invoke-NOMMA-DC-CA-Diagnostics.ps1
+```
+
 ## Prerequisites
 
 - Windows PowerShell **5.1** (or later).

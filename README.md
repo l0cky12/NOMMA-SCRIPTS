@@ -49,9 +49,11 @@ nomma-automation/
 │   └── README.md                — Python script documentation
 │
 └── powershell/                  ← Windows automation scripts
-    ├── rename-pc.ps1            — Auto-rename PCs during Autopilot enrollment
-    ├── windows-dhcp-server/     — Windows DHCP Server automation scripts
-    └── README.md                — Script documentation
+│   ├── Windows-AD-Server/       ← AD / DC / CA scripts
+│   ├── Windows-Endpoint-Management/ ← Autopilot / rename scripts
+│   ├── windows-dhcp-server/     ← Windows DHCP Server automation scripts
+│   ├── Zabbix/                  ← Zabbix / monitoring helpers
+│   └── README.md                ← Script documentation
 ```
 
 ---
@@ -92,7 +94,17 @@ nomma-automation/
 
 ## PowerShell Scripts
 
-### rename-pc.ps1
+### Windows-AD-Server/
+
+- `Cleanup-ADMetadata.ps1`
+- `Invoke-NOMMA-DC-CA-Diagnostics.ps1`
+
+`Cleanup-ADMetadata.ps1` removes stale AD metadata after a failed or incomplete domain controller demotion.
+`Invoke-NOMMA-DC-CA-Diagnostics.ps1` checks secure channel, logon server, Kerberos tickets, and certutil output for DC/CA troubleshooting.
+
+### Windows-Endpoint-Management/
+
+- `rename-pc.ps1`
 
 Renames computers during Autopilot enrollment based on serial number and asset tag from a CSV file.
 
@@ -100,7 +112,17 @@ Renames computers during Autopilot enrollment based on serial number and asset t
 
 **Example:** Serial `ABC1234567890` + AssetTag `1001` → `L5-567890-1001`
 
-See [`powershell/README.md`](powershell/README.md) for full documentation.
+### windows-dhcp-server/
+
+Windows DHCP Server automation scripts for role installation, scopes, reservations, backups, health checks, and documentation.
+
+### Zabbix/
+
+- `Setup-ZabbixAgent2ScriptFolder.ps1`
+
+Clones the Zabbix scripts repo, copies PowerShell files into the Zabbix Agent 2 script folder, verifies the copy, and cleans up the clone.
+
+See [`powershell/README.md`](powershell/README.md) for folder-specific usage examples.
 
 ---
 
@@ -155,7 +177,7 @@ ansible-playbook playbooks/site.yml --vault-id default@~/.ansible/vault-password
 ### PC Rename Deployment
 
 1. Prepare CSV with `SerialNumber,AssetTag` columns
-2. Deploy `powershell/rename-pc.ps1` as an Intune Win32 app
+2. Deploy `powershell/Windows-Endpoint-Management/rename-pc.ps1` as an Intune Win32 app
 3. Target Autopilot device group
 
 ---
