@@ -1,0 +1,14 @@
+{
+  "eventLookbackMinutes": 10,
+  "excludeVolumeLabelRegex": "^(Recovery|System Reserved)$",
+  "minimumVolumeSizeBytes": 1073741824,
+  "certificateThumbprints": [],
+  "backupProvider": "Auto",
+  "backupStatusFile": "",
+  "criticalEventLogs": [
+    "Microsoft-Windows-Hyper-V-VMMS-Admin",
+    "Microsoft-Windows-Hyper-V-Worker-Admin",
+    "Microsoft-Windows-Hyper-V-High-Availability-Admin",
+    "Microsoft-Windows-Hyper-V-StorageVSP-Admin"
+  ]
+}

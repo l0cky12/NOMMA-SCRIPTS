@@ -1,0 +1,3 @@
+config/hyperv-monitoring.json
+*.local.json
+validation-live-import.json

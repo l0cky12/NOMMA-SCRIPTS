@@ -1,0 +1,1522 @@
+{
+  "schema_version": 1,
+  "scenarios": [
+    {
+      "name": "hyperv_operational",
+      "data": {
+        "schema_version": 1,
+        "collector": {
+          "ok": 1,
+          "error": "",
+          "timestamp": 1783650000,
+          "duration_ms": 125,
+          "component_errors": []
+        },
+        "host": {
+          "role_installed": 1,
+          "vmms_service": 1,
+          "vmcompute_service": 1,
+          "vm_total": 2,
+          "vm_running": 1,
+          "vm_critical": 0,
+          "replication_enabled": 1,
+          "replica_total": 1,
+          "replica_normal": 1,
+          "replica_warning": 0,
+          "replica_critical": 0,
+          "oldest_replication_lag_seconds": 45,
+          "cluster_present": 0,
+          "cluster_service": -1,
+          "cluster_node_up": -1,
+          "replica_broker_present": 0,
+          "replica_broker_online": -1,
+          "csv_total": 0,
+          "csv_unhealthy": 0,
+          "external_switch_total": 1,
+          "external_switch_down": 0,
+          "volume_min_free_percent": 42.5,
+          "critical_event_count": 0,
+          "last_critical_event_age_seconds": 0,
+          "cpu_percent": 28.4,
+          "memory_available_percent": 47.1,
+          "certificate_min_days": 99999
+        },
+        "backup": {
+          "enabled": 1,
+          "provider": "StatusFile",
+          "status": 1,
+          "age_seconds": 3600,
+          "last_success_epoch": 1783646400
+        },
+        "vms": [
+          {
+            "{#VMID}": "11111111-1111-1111-1111-111111111111",
+            "{#VMNAME}": "APP01",
+            "id": "11111111-1111-1111-1111-111111111111",
+            "name": "APP01",
+            "state": 1,
+            "health": 1,
+            "heartbeat": 1,
+            "uptime_seconds": 86400,
+            "status": "Operating normally"
+          },
+          {
+            "{#VMID}": "22222222-2222-2222-2222-222222222222",
+            "{#VMNAME}": "MAINT01",
+            "id": "22222222-2222-2222-2222-222222222222",
+            "name": "MAINT01",
+            "state": 0,
+            "health": 1,
+            "heartbeat": 0,
+            "uptime_seconds": 0,
+            "status": "Operating normally"
+          }
+        ],
+        "replicas": [
+          {
+            "{#REPLICAID}": "11111111-1111-1111-1111-111111111111",
+            "{#REPLICANAME}": "APP01",
+            "id": "11111111-1111-1111-1111-111111111111",
+            "name": "APP01",
+            "health": 1,
+            "state": 1,
+            "mode": "Primary",
+            "last_replication_epoch": 1783649955,
+            "lag_seconds": 45,
+            "errors": 0,
+            "backlog_bytes": 0,
+            "resynchronizing": 0,
+            "failover_ready": 1
+          }
+        ],
+        "volumes": [
+          {
+            "{#VOLUMEID}": "Qzpc",
+            "{#VOLUMENAME}": "C:",
+            "id": "Qzpc",
+            "name": "C:",
+            "free_percent": 42.5,
+            "free_bytes": 42500000000,
+            "size_bytes": 100000000000
+          }
+        ],
+        "csvs": [],
+        "switches": [
+          {
+            "{#SWITCHID}": "33333333-3333-3333-3333-333333333333",
+            "{#SWITCHNAME}": "External",
+            "id": "33333333-3333-3333-3333-333333333333",
+            "name": "External",
+            "up": 1,
+            "adapter": "Ethernet 1"
+          }
+        ],
+        "certificates": []
+      }
+    },
+    {
+      "name": "hyperv_not_installed",
+      "data": {
+        "schema_version": 1,
+        "collector": {
+          "ok": 1,
+          "error": "",
+          "timestamp": 1783650000,
+          "duration_ms": 125,
+          "component_errors": []
+        },
+        "host": {
+          "role_installed": 0,
+          "vmms_service": -1,
+          "vmcompute_service": -1,
+          "vm_total": 0,
+          "vm_running": 0,
+          "vm_critical": 0,
+          "replication_enabled": 0,
+          "replica_total": 0,
+          "replica_normal": 1,
+          "replica_warning": 0,
+          "replica_critical": 0,
+          "oldest_replication_lag_seconds": 45,
+          "cluster_present": 0,
+          "cluster_service": -1,
+          "cluster_node_up": -1,
+          "replica_broker_present": 0,
+          "replica_broker_online": -1,
+          "csv_total": 0,
+          "csv_unhealthy": 0,
+          "external_switch_total": 0,
+          "external_switch_down": 0,
+          "volume_min_free_percent": 42.5,
+          "critical_event_count": 0,
+          "last_critical_event_age_seconds": 0,
+          "cpu_percent": 28.4,
+          "memory_available_percent": 47.1,
+          "certificate_min_days": 99999
+        },
+        "backup": {
+          "enabled": 0,
+          "provider": "None",
+          "status": 0,
+          "age_seconds": 0,
+          "last_success_epoch": 0
+        },
+        "vms": [],
+        "replicas": [],
+        "volumes": [
+          {
+            "{#VOLUMEID}": "Qzpc",
+            "{#VOLUMENAME}": "C:",
+            "id": "Qzpc",
+            "name": "C:",
+            "free_percent": 42.5,
+            "free_bytes": 42500000000,
+            "size_bytes": 100000000000
+          }
+        ],
+        "csvs": [],
+        "switches": [],
+        "certificates": []
+      }
+    },
+    {
+      "name": "replication_disabled",
+      "data": {
+        "schema_version": 1,
+        "collector": {
+          "ok": 1,
+          "error": "",
+          "timestamp": 1783650000,
+          "duration_ms": 125,
+          "component_errors": []
+        },
+        "host": {
+          "role_installed": 1,
+          "vmms_service": 1,
+          "vmcompute_service": 1,
+          "vm_total": 2,
+          "vm_running": 1,
+          "vm_critical": 0,
+          "replication_enabled": 0,
+          "replica_total": 0,
+          "replica_normal": 0,
+          "replica_warning": 0,
+          "replica_critical": 0,
+          "oldest_replication_lag_seconds": 0,
+          "cluster_present": 0,
+          "cluster_service": -1,
+          "cluster_node_up": -1,
+          "replica_broker_present": 0,
+          "replica_broker_online": -1,
+          "csv_total": 0,
+          "csv_unhealthy": 0,
+          "external_switch_total": 1,
+          "external_switch_down": 0,
+          "volume_min_free_percent": 42.5,
+          "critical_event_count": 0,
+          "last_critical_event_age_seconds": 0,
+          "cpu_percent": 28.4,
+          "memory_available_percent": 47.1,
+          "certificate_min_days": 99999
+        },
+        "backup": {
+          "enabled": 1,
+          "provider": "StatusFile",
+          "status": 1,
+          "age_seconds": 3600,
+          "last_success_epoch": 1783646400
+        },
+        "vms": [
+          {
+            "{#VMID}": "11111111-1111-1111-1111-111111111111",
+            "{#VMNAME}": "APP01",
+            "id": "11111111-1111-1111-1111-111111111111",
+            "name": "APP01",
+            "state": 1,
+            "health": 1,
+            "heartbeat": 1,
+            "uptime_seconds": 86400,
+            "status": "Operating normally"
+          },
+          {
+            "{#VMID}": "22222222-2222-2222-2222-222222222222",
+            "{#VMNAME}": "MAINT01",
+            "id": "22222222-2222-2222-2222-222222222222",
+            "name": "MAINT01",
+            "state": 0,
+            "health": 1,
+            "heartbeat": 0,
+            "uptime_seconds": 0,
+            "status": "Operating normally"
+          }
+        ],
+        "replicas": [],
+        "volumes": [
+          {
+            "{#VOLUMEID}": "Qzpc",
+            "{#VOLUMENAME}": "C:",
+            "id": "Qzpc",
+            "name": "C:",
+            "free_percent": 42.5,
+            "free_bytes": 42500000000,
+            "size_bytes": 100000000000
+          }
+        ],
+        "csvs": [],
+        "switches": [
+          {
+            "{#SWITCHID}": "33333333-3333-3333-3333-333333333333",
+            "{#SWITCHNAME}": "External",
+            "id": "33333333-3333-3333-3333-333333333333",
+            "name": "External",
+            "up": 1,
+            "adapter": "Ethernet 1"
+          }
+        ],
+        "certificates": []
+      }
+    },
+    {
+      "name": "replication_healthy",
+      "data": {
+        "schema_version": 1,
+        "collector": {
+          "ok": 1,
+          "error": "",
+          "timestamp": 1783650000,
+          "duration_ms": 125,
+          "component_errors": []
+        },
+        "host": {
+          "role_installed": 1,
+          "vmms_service": 1,
+          "vmcompute_service": 1,
+          "vm_total": 2,
+          "vm_running": 1,
+          "vm_critical": 0,
+          "replication_enabled": 1,
+          "replica_total": 1,
+          "replica_normal": 1,
+          "replica_warning": 0,
+          "replica_critical": 0,
+          "oldest_replication_lag_seconds": 45,
+          "cluster_present": 0,
+          "cluster_service": -1,
+          "cluster_node_up": -1,
+          "replica_broker_present": 0,
+          "replica_broker_online": -1,
+          "csv_total": 0,
+          "csv_unhealthy": 0,
+          "external_switch_total": 1,
+          "external_switch_down": 0,
+          "volume_min_free_percent": 42.5,
+          "critical_event_count": 0,
+          "last_critical_event_age_seconds": 0,
+          "cpu_percent": 28.4,
+          "memory_available_percent": 47.1,
+          "certificate_min_days": 99999
+        },
+        "backup": {
+          "enabled": 1,
+          "provider": "StatusFile",
+          "status": 1,
+          "age_seconds": 3600,
+          "last_success_epoch": 1783646400
+        },
+        "vms": [
+          {
+            "{#VMID}": "11111111-1111-1111-1111-111111111111",
+            "{#VMNAME}": "APP01",
+            "id": "11111111-1111-1111-1111-111111111111",
+            "name": "APP01",
+            "state": 1,
+            "health": 1,
+            "heartbeat": 1,
+            "uptime_seconds": 86400,
+            "status": "Operating normally"
+          },
+          {
+            "{#VMID}": "22222222-2222-2222-2222-222222222222",
+            "{#VMNAME}": "MAINT01",
+            "id": "22222222-2222-2222-2222-222222222222",
+            "name": "MAINT01",
+            "state": 0,
+            "health": 1,
+            "heartbeat": 0,
+            "uptime_seconds": 0,
+            "status": "Operating normally"
+          }
+        ],
+        "replicas": [
+          {
+            "{#REPLICAID}": "11111111-1111-1111-1111-111111111111",
+            "{#REPLICANAME}": "APP01",
+            "id": "11111111-1111-1111-1111-111111111111",
+            "name": "APP01",
+            "health": 1,
+            "state": 1,
+            "mode": "Primary",
+            "last_replication_epoch": 1783649955,
+            "lag_seconds": 45,
+            "errors": 0,
+            "backlog_bytes": 0,
+            "resynchronizing": 0,
+            "failover_ready": 1
+          }
+        ],
+        "volumes": [
+          {
+            "{#VOLUMEID}": "Qzpc",
+            "{#VOLUMENAME}": "C:",
+            "id": "Qzpc",
+            "name": "C:",
+            "free_percent": 42.5,
+            "free_bytes": 42500000000,
+            "size_bytes": 100000000000
+          }
+        ],
+        "csvs": [],
+        "switches": [
+          {
+            "{#SWITCHID}": "33333333-3333-3333-3333-333333333333",
+            "{#SWITCHNAME}": "External",
+            "id": "33333333-3333-3333-3333-333333333333",
+            "name": "External",
+            "up": 1,
+            "adapter": "Ethernet 1"
+          }
+        ],
+        "certificates": []
+      }
+    },
+    {
+      "name": "replication_warning",
+      "data": {
+        "schema_version": 1,
+        "collector": {
+          "ok": 1,
+          "error": "",
+          "timestamp": 1783650000,
+          "duration_ms": 125,
+          "component_errors": []
+        },
+        "host": {
+          "role_installed": 1,
+          "vmms_service": 1,
+          "vmcompute_service": 1,
+          "vm_total": 2,
+          "vm_running": 1,
+          "vm_critical": 0,
+          "replication_enabled": 1,
+          "replica_total": 1,
+          "replica_normal": 0,
+          "replica_warning": 1,
+          "replica_critical": 0,
+          "oldest_replication_lag_seconds": 1200,
+          "cluster_present": 0,
+          "cluster_service": -1,
+          "cluster_node_up": -1,
+          "replica_broker_present": 0,
+          "replica_broker_online": -1,
+          "csv_total": 0,
+          "csv_unhealthy": 0,
+          "external_switch_total": 1,
+          "external_switch_down": 0,
+          "volume_min_free_percent": 42.5,
+          "critical_event_count": 0,
+          "last_critical_event_age_seconds": 0,
+          "cpu_percent": 28.4,
+          "memory_available_percent": 47.1,
+          "certificate_min_days": 99999
+        },
+        "backup": {
+          "enabled": 1,
+          "provider": "StatusFile",
+          "status": 1,
+          "age_seconds": 3600,
+          "last_success_epoch": 1783646400
+        },
+        "vms": [
+          {
+            "{#VMID}": "11111111-1111-1111-1111-111111111111",
+            "{#VMNAME}": "APP01",
+            "id": "11111111-1111-1111-1111-111111111111",
+            "name": "APP01",
+            "state": 1,
+            "health": 1,
+            "heartbeat": 1,
+            "uptime_seconds": 86400,
+            "status": "Operating normally"
+          },
+          {
+            "{#VMID}": "22222222-2222-2222-2222-222222222222",
+            "{#VMNAME}": "MAINT01",
+            "id": "22222222-2222-2222-2222-222222222222",
+            "name": "MAINT01",
+            "state": 0,
+            "health": 1,
+            "heartbeat": 0,
+            "uptime_seconds": 0,
+            "status": "Operating normally"
+          }
+        ],
+        "replicas": [
+          {
+            "{#REPLICAID}": "11111111-1111-1111-1111-111111111111",
+            "{#REPLICANAME}": "APP01",
+            "id": "11111111-1111-1111-1111-111111111111",
+            "name": "APP01",
+            "health": 2,
+            "state": 4,
+            "mode": "Primary",
+            "last_replication_epoch": 1783649955,
+            "lag_seconds": 1200,
+            "errors": 0,
+            "backlog_bytes": 0,
+            "resynchronizing": 0,
+            "failover_ready": 0
+          }
+        ],
+        "volumes": [
+          {
+            "{#VOLUMEID}": "Qzpc",
+            "{#VOLUMENAME}": "C:",
+            "id": "Qzpc",
+            "name": "C:",
+            "free_percent": 42.5,
+            "free_bytes": 42500000000,
+            "size_bytes": 100000000000
+          }
+        ],
+        "csvs": [],
+        "switches": [
+          {
+            "{#SWITCHID}": "33333333-3333-3333-3333-333333333333",
+            "{#SWITCHNAME}": "External",
+            "id": "33333333-3333-3333-3333-333333333333",
+            "name": "External",
+            "up": 1,
+            "adapter": "Ethernet 1"
+          }
+        ],
+        "certificates": []
+      }
+    },
+    {
+      "name": "replication_critical",
+      "data": {
+        "schema_version": 1,
+        "collector": {
+          "ok": 1,
+          "error": "",
+          "timestamp": 1783650000,
+          "duration_ms": 125,
+          "component_errors": []
+        },
+        "host": {
+          "role_installed": 1,
+          "vmms_service": 1,
+          "vmcompute_service": 1,
+          "vm_total": 2,
+          "vm_running": 1,
+          "vm_critical": 0,
+          "replication_enabled": 1,
+          "replica_total": 1,
+          "replica_normal": 0,
+          "replica_warning": 0,
+          "replica_critical": 1,
+          "oldest_replication_lag_seconds": 7200,
+          "cluster_present": 0,
+          "cluster_service": -1,
+          "cluster_node_up": -1,
+          "replica_broker_present": 0,
+          "replica_broker_online": -1,
+          "csv_total": 0,
+          "csv_unhealthy": 0,
+          "external_switch_total": 1,
+          "external_switch_down": 0,
+          "volume_min_free_percent": 42.5,
+          "critical_event_count": 0,
+          "last_critical_event_age_seconds": 0,
+          "cpu_percent": 28.4,
+          "memory_available_percent": 47.1,
+          "certificate_min_days": 99999
+        },
+        "backup": {
+          "enabled": 1,
+          "provider": "StatusFile",
+          "status": 1,
+          "age_seconds": 3600,
+          "last_success_epoch": 1783646400
+        },
+        "vms": [
+          {
+            "{#VMID}": "11111111-1111-1111-1111-111111111111",
+            "{#VMNAME}": "APP01",
+            "id": "11111111-1111-1111-1111-111111111111",
+            "name": "APP01",
+            "state": 1,
+            "health": 1,
+            "heartbeat": 1,
+            "uptime_seconds": 86400,
+            "status": "Operating normally"
+          },
+          {
+            "{#VMID}": "22222222-2222-2222-2222-222222222222",
+            "{#VMNAME}": "MAINT01",
+            "id": "22222222-2222-2222-2222-222222222222",
+            "name": "MAINT01",
+            "state": 0,
+            "health": 1,
+            "heartbeat": 0,
+            "uptime_seconds": 0,
+            "status": "Operating normally"
+          }
+        ],
+        "replicas": [
+          {
+            "{#REPLICAID}": "11111111-1111-1111-1111-111111111111",
+            "{#REPLICANAME}": "APP01",
+            "id": "11111111-1111-1111-1111-111111111111",
+            "name": "APP01",
+            "health": 3,
+            "state": 5,
+            "mode": "Primary",
+            "last_replication_epoch": 1783649955,
+            "lag_seconds": 7200,
+            "errors": 3,
+            "backlog_bytes": 5368709120,
+            "resynchronizing": 0,
+            "failover_ready": 0
+          }
+        ],
+        "volumes": [
+          {
+            "{#VOLUMEID}": "Qzpc",
+            "{#VOLUMENAME}": "C:",
+            "id": "Qzpc",
+            "name": "C:",
+            "free_percent": 42.5,
+            "free_bytes": 42500000000,
+            "size_bytes": 100000000000
+          }
+        ],
+        "csvs": [],
+        "switches": [
+          {
+            "{#SWITCHID}": "33333333-3333-3333-3333-333333333333",
+            "{#SWITCHNAME}": "External",
+            "id": "33333333-3333-3333-3333-333333333333",
+            "name": "External",
+            "up": 1,
+            "adapter": "Ethernet 1"
+          }
+        ],
+        "certificates": []
+      }
+    },
+    {
+      "name": "vm_powered_on",
+      "data": {
+        "schema_version": 1,
+        "collector": {
+          "ok": 1,
+          "error": "",
+          "timestamp": 1783650000,
+          "duration_ms": 125,
+          "component_errors": []
+        },
+        "host": {
+          "role_installed": 1,
+          "vmms_service": 1,
+          "vmcompute_service": 1,
+          "vm_total": 1,
+          "vm_running": 1,
+          "vm_critical": 0,
+          "replication_enabled": 1,
+          "replica_total": 1,
+          "replica_normal": 1,
+          "replica_warning": 0,
+          "replica_critical": 0,
+          "oldest_replication_lag_seconds": 45,
+          "cluster_present": 0,
+          "cluster_service": -1,
+          "cluster_node_up": -1,
+          "replica_broker_present": 0,
+          "replica_broker_online": -1,
+          "csv_total": 0,
+          "csv_unhealthy": 0,
+          "external_switch_total": 1,
+          "external_switch_down": 0,
+          "volume_min_free_percent": 42.5,
+          "critical_event_count": 0,
+          "last_critical_event_age_seconds": 0,
+          "cpu_percent": 28.4,
+          "memory_available_percent": 47.1,
+          "certificate_min_days": 99999
+        },
+        "backup": {
+          "enabled": 1,
+          "provider": "StatusFile",
+          "status": 1,
+          "age_seconds": 3600,
+          "last_success_epoch": 1783646400
+        },
+        "vms": [
+          {
+            "{#VMID}": "11111111-1111-1111-1111-111111111111",
+            "{#VMNAME}": "APP01",
+            "id": "11111111-1111-1111-1111-111111111111",
+            "name": "APP01",
+            "state": 1,
+            "health": 1,
+            "heartbeat": 1,
+            "uptime_seconds": 86400,
+            "status": "Operating normally"
+          }
+        ],
+        "replicas": [
+          {
+            "{#REPLICAID}": "11111111-1111-1111-1111-111111111111",
+            "{#REPLICANAME}": "APP01",
+            "id": "11111111-1111-1111-1111-111111111111",
+            "name": "APP01",
+            "health": 1,
+            "state": 1,
+            "mode": "Primary",
+            "last_replication_epoch": 1783649955,
+            "lag_seconds": 45,
+            "errors": 0,
+            "backlog_bytes": 0,
+            "resynchronizing": 0,
+            "failover_ready": 1
+          }
+        ],
+        "volumes": [
+          {
+            "{#VOLUMEID}": "Qzpc",
+            "{#VOLUMENAME}": "C:",
+            "id": "Qzpc",
+            "name": "C:",
+            "free_percent": 42.5,
+            "free_bytes": 42500000000,
+            "size_bytes": 100000000000
+          }
+        ],
+        "csvs": [],
+        "switches": [
+          {
+            "{#SWITCHID}": "33333333-3333-3333-3333-333333333333",
+            "{#SWITCHNAME}": "External",
+            "id": "33333333-3333-3333-3333-333333333333",
+            "name": "External",
+            "up": 1,
+            "adapter": "Ethernet 1"
+          }
+        ],
+        "certificates": []
+      }
+    },
+    {
+      "name": "vm_powered_off_intentionally",
+      "data": {
+        "schema_version": 1,
+        "collector": {
+          "ok": 1,
+          "error": "",
+          "timestamp": 1783650000,
+          "duration_ms": 125,
+          "component_errors": []
+        },
+        "host": {
+          "role_installed": 1,
+          "vmms_service": 1,
+          "vmcompute_service": 1,
+          "vm_total": 1,
+          "vm_running": 0,
+          "vm_critical": 0,
+          "replication_enabled": 1,
+          "replica_total": 1,
+          "replica_normal": 1,
+          "replica_warning": 0,
+          "replica_critical": 0,
+          "oldest_replication_lag_seconds": 45,
+          "cluster_present": 0,
+          "cluster_service": -1,
+          "cluster_node_up": -1,
+          "replica_broker_present": 0,
+          "replica_broker_online": -1,
+          "csv_total": 0,
+          "csv_unhealthy": 0,
+          "external_switch_total": 1,
+          "external_switch_down": 0,
+          "volume_min_free_percent": 42.5,
+          "critical_event_count": 0,
+          "last_critical_event_age_seconds": 0,
+          "cpu_percent": 28.4,
+          "memory_available_percent": 47.1,
+          "certificate_min_days": 99999
+        },
+        "backup": {
+          "enabled": 1,
+          "provider": "StatusFile",
+          "status": 1,
+          "age_seconds": 3600,
+          "last_success_epoch": 1783646400
+        },
+        "vms": [
+          {
+            "{#VMID}": "22222222-2222-2222-2222-222222222222",
+            "{#VMNAME}": "MAINT01",
+            "id": "22222222-2222-2222-2222-222222222222",
+            "name": "MAINT01",
+            "state": 0,
+            "health": 1,
+            "heartbeat": 0,
+            "uptime_seconds": 0,
+            "status": "Operating normally"
+          }
+        ],
+        "replicas": [
+          {
+            "{#REPLICAID}": "11111111-1111-1111-1111-111111111111",
+            "{#REPLICANAME}": "APP01",
+            "id": "11111111-1111-1111-1111-111111111111",
+            "name": "APP01",
+            "health": 1,
+            "state": 1,
+            "mode": "Primary",
+            "last_replication_epoch": 1783649955,
+            "lag_seconds": 45,
+            "errors": 0,
+            "backlog_bytes": 0,
+            "resynchronizing": 0,
+            "failover_ready": 1
+          }
+        ],
+        "volumes": [
+          {
+            "{#VOLUMEID}": "Qzpc",
+            "{#VOLUMENAME}": "C:",
+            "id": "Qzpc",
+            "name": "C:",
+            "free_percent": 42.5,
+            "free_bytes": 42500000000,
+            "size_bytes": 100000000000
+          }
+        ],
+        "csvs": [],
+        "switches": [
+          {
+            "{#SWITCHID}": "33333333-3333-3333-3333-333333333333",
+            "{#SWITCHNAME}": "External",
+            "id": "33333333-3333-3333-3333-333333333333",
+            "name": "External",
+            "up": 1,
+            "adapter": "Ethernet 1"
+          }
+        ],
+        "certificates": []
+      }
+    },
+    {
+      "name": "standalone_host",
+      "data": {
+        "schema_version": 1,
+        "collector": {
+          "ok": 1,
+          "error": "",
+          "timestamp": 1783650000,
+          "duration_ms": 125,
+          "component_errors": []
+        },
+        "host": {
+          "role_installed": 1,
+          "vmms_service": 1,
+          "vmcompute_service": 1,
+          "vm_total": 2,
+          "vm_running": 1,
+          "vm_critical": 0,
+          "replication_enabled": 1,
+          "replica_total": 1,
+          "replica_normal": 1,
+          "replica_warning": 0,
+          "replica_critical": 0,
+          "oldest_replication_lag_seconds": 45,
+          "cluster_present": 0,
+          "cluster_service": -1,
+          "cluster_node_up": -1,
+          "replica_broker_present": 0,
+          "replica_broker_online": -1,
+          "csv_total": 0,
+          "csv_unhealthy": 0,
+          "external_switch_total": 1,
+          "external_switch_down": 0,
+          "volume_min_free_percent": 42.5,
+          "critical_event_count": 0,
+          "last_critical_event_age_seconds": 0,
+          "cpu_percent": 28.4,
+          "memory_available_percent": 47.1,
+          "certificate_min_days": 99999
+        },
+        "backup": {
+          "enabled": 1,
+          "provider": "StatusFile",
+          "status": 1,
+          "age_seconds": 3600,
+          "last_success_epoch": 1783646400
+        },
+        "vms": [
+          {
+            "{#VMID}": "11111111-1111-1111-1111-111111111111",
+            "{#VMNAME}": "APP01",
+            "id": "11111111-1111-1111-1111-111111111111",
+            "name": "APP01",
+            "state": 1,
+            "health": 1,
+            "heartbeat": 1,
+            "uptime_seconds": 86400,
+            "status": "Operating normally"
+          },
+          {
+            "{#VMID}": "22222222-2222-2222-2222-222222222222",
+            "{#VMNAME}": "MAINT01",
+            "id": "22222222-2222-2222-2222-222222222222",
+            "name": "MAINT01",
+            "state": 0,
+            "health": 1,
+            "heartbeat": 0,
+            "uptime_seconds": 0,
+            "status": "Operating normally"
+          }
+        ],
+        "replicas": [
+          {
+            "{#REPLICAID}": "11111111-1111-1111-1111-111111111111",
+            "{#REPLICANAME}": "APP01",
+            "id": "11111111-1111-1111-1111-111111111111",
+            "name": "APP01",
+            "health": 1,
+            "state": 1,
+            "mode": "Primary",
+            "last_replication_epoch": 1783649955,
+            "lag_seconds": 45,
+            "errors": 0,
+            "backlog_bytes": 0,
+            "resynchronizing": 0,
+            "failover_ready": 1
+          }
+        ],
+        "volumes": [
+          {
+            "{#VOLUMEID}": "Qzpc",
+            "{#VOLUMENAME}": "C:",
+            "id": "Qzpc",
+            "name": "C:",
+            "free_percent": 42.5,
+            "free_bytes": 42500000000,
+            "size_bytes": 100000000000
+          }
+        ],
+        "csvs": [],
+        "switches": [
+          {
+            "{#SWITCHID}": "33333333-3333-3333-3333-333333333333",
+            "{#SWITCHNAME}": "External",
+            "id": "33333333-3333-3333-3333-333333333333",
+            "name": "External",
+            "up": 1,
+            "adapter": "Ethernet 1"
+          }
+        ],
+        "certificates": []
+      }
+    },
+    {
+      "name": "clustered_with_csv",
+      "data": {
+        "schema_version": 1,
+        "collector": {
+          "ok": 1,
+          "error": "",
+          "timestamp": 1783650000,
+          "duration_ms": 125,
+          "component_errors": []
+        },
+        "host": {
+          "role_installed": 1,
+          "vmms_service": 1,
+          "vmcompute_service": 1,
+          "vm_total": 2,
+          "vm_running": 1,
+          "vm_critical": 0,
+          "replication_enabled": 1,
+          "replica_total": 1,
+          "replica_normal": 1,
+          "replica_warning": 0,
+          "replica_critical": 0,
+          "oldest_replication_lag_seconds": 45,
+          "cluster_present": 1,
+          "cluster_service": 1,
+          "cluster_node_up": 1,
+          "replica_broker_present": 1,
+          "replica_broker_online": 1,
+          "csv_total": 1,
+          "csv_unhealthy": 0,
+          "external_switch_total": 1,
+          "external_switch_down": 0,
+          "volume_min_free_percent": 42.5,
+          "critical_event_count": 0,
+          "last_critical_event_age_seconds": 0,
+          "cpu_percent": 28.4,
+          "memory_available_percent": 47.1,
+          "certificate_min_days": 99999
+        },
+        "backup": {
+          "enabled": 1,
+          "provider": "StatusFile",
+          "status": 1,
+          "age_seconds": 3600,
+          "last_success_epoch": 1783646400
+        },
+        "vms": [
+          {
+            "{#VMID}": "11111111-1111-1111-1111-111111111111",
+            "{#VMNAME}": "APP01",
+            "id": "11111111-1111-1111-1111-111111111111",
+            "name": "APP01",
+            "state": 1,
+            "health": 1,
+            "heartbeat": 1,
+            "uptime_seconds": 86400,
+            "status": "Operating normally"
+          },
+          {
+            "{#VMID}": "22222222-2222-2222-2222-222222222222",
+            "{#VMNAME}": "MAINT01",
+            "id": "22222222-2222-2222-2222-222222222222",
+            "name": "MAINT01",
+            "state": 0,
+            "health": 1,
+            "heartbeat": 0,
+            "uptime_seconds": 0,
+            "status": "Operating normally"
+          }
+        ],
+        "replicas": [
+          {
+            "{#REPLICAID}": "11111111-1111-1111-1111-111111111111",
+            "{#REPLICANAME}": "APP01",
+            "id": "11111111-1111-1111-1111-111111111111",
+            "name": "APP01",
+            "health": 1,
+            "state": 1,
+            "mode": "Primary",
+            "last_replication_epoch": 1783649955,
+            "lag_seconds": 45,
+            "errors": 0,
+            "backlog_bytes": 0,
+            "resynchronizing": 0,
+            "failover_ready": 1
+          }
+        ],
+        "volumes": [
+          {
+            "{#VOLUMEID}": "Qzpc",
+            "{#VOLUMENAME}": "C:",
+            "id": "Qzpc",
+            "name": "C:",
+            "free_percent": 42.5,
+            "free_bytes": 42500000000,
+            "size_bytes": 100000000000
+          }
+        ],
+        "csvs": [
+          {
+            "{#CSVID}": "cluster disk 1",
+            "{#CSVNAME}": "Cluster Disk 1",
+            "id": "cluster disk 1",
+            "name": "Cluster Disk 1",
+            "state": 1,
+            "free_percent": 55.0,
+            "size_bytes": 500000000000
+          }
+        ],
+        "switches": [
+          {
+            "{#SWITCHID}": "33333333-3333-3333-3333-333333333333",
+            "{#SWITCHNAME}": "External",
+            "id": "33333333-3333-3333-3333-333333333333",
+            "name": "External",
+            "up": 1,
+            "adapter": "Ethernet 1"
+          }
+        ],
+        "certificates": []
+      }
+    },
+    {
+      "name": "clustered_without_csv",
+      "data": {
+        "schema_version": 1,
+        "collector": {
+          "ok": 1,
+          "error": "",
+          "timestamp": 1783650000,
+          "duration_ms": 125,
+          "component_errors": []
+        },
+        "host": {
+          "role_installed": 1,
+          "vmms_service": 1,
+          "vmcompute_service": 1,
+          "vm_total": 2,
+          "vm_running": 1,
+          "vm_critical": 0,
+          "replication_enabled": 1,
+          "replica_total": 1,
+          "replica_normal": 1,
+          "replica_warning": 0,
+          "replica_critical": 0,
+          "oldest_replication_lag_seconds": 45,
+          "cluster_present": 1,
+          "cluster_service": 1,
+          "cluster_node_up": 1,
+          "replica_broker_present": 0,
+          "replica_broker_online": -1,
+          "csv_total": 0,
+          "csv_unhealthy": 0,
+          "external_switch_total": 1,
+          "external_switch_down": 0,
+          "volume_min_free_percent": 42.5,
+          "critical_event_count": 0,
+          "last_critical_event_age_seconds": 0,
+          "cpu_percent": 28.4,
+          "memory_available_percent": 47.1,
+          "certificate_min_days": 99999
+        },
+        "backup": {
+          "enabled": 1,
+          "provider": "StatusFile",
+          "status": 1,
+          "age_seconds": 3600,
+          "last_success_epoch": 1783646400
+        },
+        "vms": [
+          {
+            "{#VMID}": "11111111-1111-1111-1111-111111111111",
+            "{#VMNAME}": "APP01",
+            "id": "11111111-1111-1111-1111-111111111111",
+            "name": "APP01",
+            "state": 1,
+            "health": 1,
+            "heartbeat": 1,
+            "uptime_seconds": 86400,
+            "status": "Operating normally"
+          },
+          {
+            "{#VMID}": "22222222-2222-2222-2222-222222222222",
+            "{#VMNAME}": "MAINT01",
+            "id": "22222222-2222-2222-2222-222222222222",
+            "name": "MAINT01",
+            "state": 0,
+            "health": 1,
+            "heartbeat": 0,
+            "uptime_seconds": 0,
+            "status": "Operating normally"
+          }
+        ],
+        "replicas": [
+          {
+            "{#REPLICAID}": "11111111-1111-1111-1111-111111111111",
+            "{#REPLICANAME}": "APP01",
+            "id": "11111111-1111-1111-1111-111111111111",
+            "name": "APP01",
+            "health": 1,
+            "state": 1,
+            "mode": "Primary",
+            "last_replication_epoch": 1783649955,
+            "lag_seconds": 45,
+            "errors": 0,
+            "backlog_bytes": 0,
+            "resynchronizing": 0,
+            "failover_ready": 1
+          }
+        ],
+        "volumes": [
+          {
+            "{#VOLUMEID}": "Qzpc",
+            "{#VOLUMENAME}": "C:",
+            "id": "Qzpc",
+            "name": "C:",
+            "free_percent": 42.5,
+            "free_bytes": 42500000000,
+            "size_bytes": 100000000000
+          }
+        ],
+        "csvs": [],
+        "switches": [
+          {
+            "{#SWITCHID}": "33333333-3333-3333-3333-333333333333",
+            "{#SWITCHNAME}": "External",
+            "id": "33333333-3333-3333-3333-333333333333",
+            "name": "External",
+            "up": 1,
+            "adapter": "Ethernet 1"
+          }
+        ],
+        "certificates": []
+      }
+    },
+    {
+      "name": "permission_denied",
+      "data": {
+        "schema_version": 1,
+        "collector": {
+          "ok": 0,
+          "error": "Get-VM failed: Access is denied.",
+          "timestamp": 1783650000,
+          "duration_ms": 125,
+          "component_errors": []
+        },
+        "host": {
+          "role_installed": 1,
+          "vmms_service": 1,
+          "vmcompute_service": 1,
+          "vm_total": 0,
+          "vm_running": 0,
+          "vm_critical": 0,
+          "replication_enabled": 1,
+          "replica_total": 1,
+          "replica_normal": 1,
+          "replica_warning": 0,
+          "replica_critical": 0,
+          "oldest_replication_lag_seconds": 45,
+          "cluster_present": 0,
+          "cluster_service": -1,
+          "cluster_node_up": -1,
+          "replica_broker_present": 0,
+          "replica_broker_online": -1,
+          "csv_total": 0,
+          "csv_unhealthy": 0,
+          "external_switch_total": 1,
+          "external_switch_down": 0,
+          "volume_min_free_percent": 42.5,
+          "critical_event_count": 0,
+          "last_critical_event_age_seconds": 0,
+          "cpu_percent": 28.4,
+          "memory_available_percent": 47.1,
+          "certificate_min_days": 99999
+        },
+        "backup": {
+          "enabled": 1,
+          "provider": "StatusFile",
+          "status": 1,
+          "age_seconds": 3600,
+          "last_success_epoch": 1783646400
+        },
+        "vms": [],
+        "replicas": [
+          {
+            "{#REPLICAID}": "11111111-1111-1111-1111-111111111111",
+            "{#REPLICANAME}": "APP01",
+            "id": "11111111-1111-1111-1111-111111111111",
+            "name": "APP01",
+            "health": 1,
+            "state": 1,
+            "mode": "Primary",
+            "last_replication_epoch": 1783649955,
+            "lag_seconds": 45,
+            "errors": 0,
+            "backlog_bytes": 0,
+            "resynchronizing": 0,
+            "failover_ready": 1
+          }
+        ],
+        "volumes": [
+          {
+            "{#VOLUMEID}": "Qzpc",
+            "{#VOLUMENAME}": "C:",
+            "id": "Qzpc",
+            "name": "C:",
+            "free_percent": 42.5,
+            "free_bytes": 42500000000,
+            "size_bytes": 100000000000
+          }
+        ],
+        "csvs": [],
+        "switches": [
+          {
+            "{#SWITCHID}": "33333333-3333-3333-3333-333333333333",
+            "{#SWITCHNAME}": "External",
+            "id": "33333333-3333-3333-3333-333333333333",
+            "name": "External",
+            "up": 1,
+            "adapter": "Ethernet 1"
+          }
+        ],
+        "certificates": []
+      }
+    },
+    {
+      "name": "inaccessible_or_deleted_vm",
+      "data": {
+        "schema_version": 1,
+        "collector": {
+          "ok": 1,
+          "error": "",
+          "timestamp": 1783650000,
+          "duration_ms": 125,
+          "component_errors": []
+        },
+        "host": {
+          "role_installed": 1,
+          "vmms_service": 1,
+          "vmcompute_service": 1,
+          "vm_total": 0,
+          "vm_running": 0,
+          "vm_critical": 0,
+          "replication_enabled": 1,
+          "replica_total": 1,
+          "replica_normal": 1,
+          "replica_warning": 0,
+          "replica_critical": 0,
+          "oldest_replication_lag_seconds": 45,
+          "cluster_present": 0,
+          "cluster_service": -1,
+          "cluster_node_up": -1,
+          "replica_broker_present": 0,
+          "replica_broker_online": -1,
+          "csv_total": 0,
+          "csv_unhealthy": 0,
+          "external_switch_total": 1,
+          "external_switch_down": 0,
+          "volume_min_free_percent": 42.5,
+          "critical_event_count": 0,
+          "last_critical_event_age_seconds": 0,
+          "cpu_percent": 28.4,
+          "memory_available_percent": 47.1,
+          "certificate_min_days": 99999
+        },
+        "backup": {
+          "enabled": 1,
+          "provider": "StatusFile",
+          "status": 1,
+          "age_seconds": 3600,
+          "last_success_epoch": 1783646400
+        },
+        "vms": [],
+        "replicas": [
+          {
+            "{#REPLICAID}": "11111111-1111-1111-1111-111111111111",
+            "{#REPLICANAME}": "APP01",
+            "id": "11111111-1111-1111-1111-111111111111",
+            "name": "APP01",
+            "health": 1,
+            "state": 1,
+            "mode": "Primary",
+            "last_replication_epoch": 1783649955,
+            "lag_seconds": 45,
+            "errors": 0,
+            "backlog_bytes": 0,
+            "resynchronizing": 0,
+            "failover_ready": 1
+          }
+        ],
+        "volumes": [
+          {
+            "{#VOLUMEID}": "Qzpc",
+            "{#VOLUMENAME}": "C:",
+            "id": "Qzpc",
+            "name": "C:",
+            "free_percent": 42.5,
+            "free_bytes": 42500000000,
+            "size_bytes": 100000000000
+          }
+        ],
+        "csvs": [],
+        "switches": [
+          {
+            "{#SWITCHID}": "33333333-3333-3333-3333-333333333333",
+            "{#SWITCHNAME}": "External",
+            "id": "33333333-3333-3333-3333-333333333333",
+            "name": "External",
+            "up": 1,
+            "adapter": "Ethernet 1"
+          }
+        ],
+        "certificates": []
+      }
+    },
+    {
+      "name": "empty_discovery",
+      "data": {
+        "schema_version": 1,
+        "collector": {
+          "ok": 1,
+          "error": "",
+          "timestamp": 1783650000,
+          "duration_ms": 125,
+          "component_errors": []
+        },
+        "host": {
+          "role_installed": 1,
+          "vmms_service": 1,
+          "vmcompute_service": 1,
+          "vm_total": 0,
+          "vm_running": 0,
+          "vm_critical": 0,
+          "replication_enabled": 1,
+          "replica_total": 0,
+          "replica_normal": 1,
+          "replica_warning": 0,
+          "replica_critical": 0,
+          "oldest_replication_lag_seconds": 45,
+          "cluster_present": 0,
+          "cluster_service": -1,
+          "cluster_node_up": -1,
+          "replica_broker_present": 0,
+          "replica_broker_online": -1,
+          "csv_total": 0,
+          "csv_unhealthy": 0,
+          "external_switch_total": 0,
+          "external_switch_down": 0,
+          "volume_min_free_percent": 42.5,
+          "critical_event_count": 0,
+          "last_critical_event_age_seconds": 0,
+          "cpu_percent": 28.4,
+          "memory_available_percent": 47.1,
+          "certificate_min_days": 99999
+        },
+        "backup": {
+          "enabled": 1,
+          "provider": "StatusFile",
+          "status": 1,
+          "age_seconds": 3600,
+          "last_success_epoch": 1783646400
+        },
+        "vms": [],
+        "replicas": [],
+        "volumes": [],
+        "csvs": [],
+        "switches": [],
+        "certificates": []
+      }
+    },
+    {
+      "name": "powershell_or_cim_failure",
+      "data": {
+        "schema_version": 1,
+        "collector": {
+          "ok": 0,
+          "error": "CIM query failed: RPC server unavailable",
+          "timestamp": 1783650000,
+          "duration_ms": 125,
+          "component_errors": [
+            "Capacity query: RPC server unavailable"
+          ]
+        },
+        "host": {
+          "role_installed": 1,
+          "vmms_service": 1,
+          "vmcompute_service": 1,
+          "vm_total": 2,
+          "vm_running": 1,
+          "vm_critical": 0,
+          "replication_enabled": 1,
+          "replica_total": 1,
+          "replica_normal": 1,
+          "replica_warning": 0,
+          "replica_critical": 0,
+          "oldest_replication_lag_seconds": 45,
+          "cluster_present": 0,
+          "cluster_service": -1,
+          "cluster_node_up": -1,
+          "replica_broker_present": 0,
+          "replica_broker_online": -1,
+          "csv_total": 0,
+          "csv_unhealthy": 0,
+          "external_switch_total": 1,
+          "external_switch_down": 0,
+          "volume_min_free_percent": 42.5,
+          "critical_event_count": 0,
+          "last_critical_event_age_seconds": 0,
+          "cpu_percent": 28.4,
+          "memory_available_percent": 47.1,
+          "certificate_min_days": 99999
+        },
+        "backup": {
+          "enabled": 1,
+          "provider": "StatusFile",
+          "status": 1,
+          "age_seconds": 3600,
+          "last_success_epoch": 1783646400
+        },
+        "vms": [
+          {
+            "{#VMID}": "11111111-1111-1111-1111-111111111111",
+            "{#VMNAME}": "APP01",
+            "id": "11111111-1111-1111-1111-111111111111",
+            "name": "APP01",
+            "state": 1,
+            "health": 1,
+            "heartbeat": 1,
+            "uptime_seconds": 86400,
+            "status": "Operating normally"
+          },
+          {
+            "{#VMID}": "22222222-2222-2222-2222-222222222222",
+            "{#VMNAME}": "MAINT01",
+            "id": "22222222-2222-2222-2222-222222222222",
+            "name": "MAINT01",
+            "state": 0,
+            "health": 1,
+            "heartbeat": 0,
+            "uptime_seconds": 0,
+            "status": "Operating normally"
+          }
+        ],
+        "replicas": [
+          {
+            "{#REPLICAID}": "11111111-1111-1111-1111-111111111111",
+            "{#REPLICANAME}": "APP01",
+            "id": "11111111-1111-1111-1111-111111111111",
+            "name": "APP01",
+            "health": 1,
+            "state": 1,
+            "mode": "Primary",
+            "last_replication_epoch": 1783649955,
+            "lag_seconds": 45,
+            "errors": 0,
+            "backlog_bytes": 0,
+            "resynchronizing": 0,
+            "failover_ready": 1
+          }
+        ],
+        "volumes": [
+          {
+            "{#VOLUMEID}": "Qzpc",
+            "{#VOLUMENAME}": "C:",
+            "id": "Qzpc",
+            "name": "C:",
+            "free_percent": 42.5,
+            "free_bytes": 42500000000,
+            "size_bytes": 100000000000
+          }
+        ],
+        "csvs": [],
+        "switches": [
+          {
+            "{#SWITCHID}": "33333333-3333-3333-3333-333333333333",
+            "{#SWITCHNAME}": "External",
+            "id": "33333333-3333-3333-3333-333333333333",
+            "name": "External",
+            "up": 1,
+            "adapter": "Ethernet 1"
+          }
+        ],
+        "certificates": []
+      }
+    }
+  ]
+}

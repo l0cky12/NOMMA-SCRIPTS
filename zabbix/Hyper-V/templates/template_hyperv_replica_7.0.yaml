@@ -1,0 +1,1629 @@
+zabbix_export:
+  version: '7.0'
+  template_groups:
+  - uuid: 8431f11b0159462880943aaa7b544fd9
+    name: Templates/Virtualization
+  templates:
+  - uuid: cb960109204743119cf74837d2732ea6
+    template: NOMMA Hyper-V and Replica by Zabbix agent
+    name: NOMMA Hyper-V and Replica by Zabbix agent
+    description: Lean operational monitoring for Windows Server Hyper-V, Hyper-V Replica, failover clustering, CSVs, external switches, selected certificates, and
+      backup freshness. Built for Zabbix 7.0.28 LTS and verified 2026-07-10 UTC. Link the official Windows by Zabbix agent template separately for OS availability
+      and baseline CPU/memory/disk telemetry.
+    vendor:
+      name: NOMMA
+      version: 1.0.0
+    groups:
+    - name: Templates/Virtualization
+    items:
+    - uuid: 6f74dbc1342d47f2b58d5a28a780deaa
+      name: 'Hyper-V: Raw health data'
+      key: hyperv.collect
+      delay: 1m
+      history: 1d
+      value_type: TEXT
+      trends: '0'
+      description: Single read-only PowerShell collection. All other custom metrics are dependent items.
+      tags:
+      - tag: component
+        value: raw
+      - tag: scope
+        value: health
+    - uuid: f2eab686b77d471db08091c67ffd77bd
+      name: 'Hyper-V: Collector status'
+      type: DEPENDENT
+      key: hyperv.collector.ok
+      delay: '0'
+      history: 30d
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.collector.ok
+      master_item:
+        key: hyperv.collect
+      tags:
+      - tag: component
+        value: collector
+      - tag: scope
+        value: health
+      trends: 365d
+      valuemap:
+        name: NOMMA binary status
+    - uuid: e37e45f6de5a462a830fbf7f5f2ec0c2
+      name: 'Hyper-V: Collector error'
+      type: DEPENDENT
+      key: hyperv.collector.error
+      delay: '0'
+      history: 30d
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.collector.error
+      master_item:
+        key: hyperv.collect
+      tags:
+      - tag: component
+        value: collector
+      - tag: scope
+        value: health
+      value_type: TEXT
+      trends: '0'
+    - uuid: 93055323a5b04596a8c3054d499ed4eb
+      name: 'Hyper-V: Collector duration'
+      type: DEPENDENT
+      key: hyperv.collector.duration
+      delay: '0'
+      history: 30d
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.collector.duration_ms
+      master_item:
+        key: hyperv.collect
+      tags:
+      - tag: component
+        value: collector
+      - tag: scope
+        value: health
+      units: ms
+      trends: 365d
+    - uuid: ffcbffb310d84c9ba0b970b591854aa2
+      name: 'Hyper-V: Role installed'
+      type: DEPENDENT
+      key: hyperv.role.installed
+      delay: '0'
+      history: 30d
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.host.role_installed
+      master_item:
+        key: hyperv.collect
+      tags:
+      - tag: component
+        value: hyperv
+      - tag: scope
+        value: health
+      trends: 365d
+      valuemap:
+        name: NOMMA binary status
+    - uuid: ef5828a212d242b780ccedc5228bd2c0
+      name: 'Hyper-V: VMMS service state'
+      type: DEPENDENT
+      key: hyperv.service.vmms
+      delay: '0'
+      history: 30d
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.host.vmms_service
+      master_item:
+        key: hyperv.collect
+      tags:
+      - tag: component
+        value: service
+      - tag: scope
+        value: health
+      trends: 365d
+      valuemap:
+        name: NOMMA tri-state status
+      triggers:
+      - uuid: 0dfebf7470644428a76edae045533a14
+        expression: last(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.role.installed)=1 and max(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.service.vmms,3m)=0
+        name: 'Hyper-V: Virtual Machine Management service is down'
+        priority: HIGH
+        description: ''
+        tags:
+        - tag: scope
+          value: availability
+        recovery_mode: RECOVERY_EXPRESSION
+        recovery_expression: last(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.service.vmms)=1 or last(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.role.installed)=0
+    - uuid: 885c5704551141aa8406c33edaf8c0fd
+      name: 'Hyper-V: Host Compute service state'
+      type: DEPENDENT
+      key: hyperv.service.vmcompute
+      delay: '0'
+      history: 30d
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.host.vmcompute_service
+      master_item:
+        key: hyperv.collect
+      tags:
+      - tag: component
+        value: service
+      - tag: scope
+        value: health
+      trends: 365d
+      valuemap:
+        name: NOMMA tri-state status
+      triggers:
+      - uuid: 5d12393db7414a589861c322370efdd8
+        expression: last(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.role.installed)=1 and last(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.service.vmms)=1
+          and max(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.service.vmcompute,3m)=0
+        name: 'Hyper-V: Host Compute service is down'
+        priority: AVERAGE
+        description: ''
+        tags:
+        - tag: scope
+          value: health
+        recovery_mode: RECOVERY_EXPRESSION
+        recovery_expression: last(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.service.vmcompute)=1 or last(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.role.installed)=0
+    - uuid: 9bce951696a64003b982f32aa24606c6
+      name: 'Hyper-V: VMs total'
+      type: DEPENDENT
+      key: hyperv.vm.total
+      delay: '0'
+      history: 30d
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.host.vm_total
+      master_item:
+        key: hyperv.collect
+      tags:
+      - tag: component
+        value: vm
+      - tag: scope
+        value: health
+      trends: 365d
+    - uuid: b167f15384f14ce283f4d1037df8ccd5
+      name: 'Hyper-V: VMs running'
+      type: DEPENDENT
+      key: hyperv.vm.running
+      delay: '0'
+      history: 30d
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.host.vm_running
+      master_item:
+        key: hyperv.collect
+      tags:
+      - tag: component
+        value: vm
+      - tag: scope
+        value: health
+      trends: 365d
+    - uuid: 059e86b606384eb2ab4d06a9aab6aab0
+      name: 'Hyper-V: VMs critical'
+      type: DEPENDENT
+      key: hyperv.vm.critical
+      delay: '0'
+      history: 30d
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.host.vm_critical
+      master_item:
+        key: hyperv.collect
+      tags:
+      - tag: component
+        value: vm
+      - tag: scope
+        value: health
+      trends: 365d
+    - uuid: 2bbd59b64abe4b36bc580dfc474a9a11
+      name: 'Hyper-V Replica: Server enabled'
+      type: DEPENDENT
+      key: hyperv.replication.enabled
+      delay: '0'
+      history: 30d
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.host.replication_enabled
+      master_item:
+        key: hyperv.collect
+      tags:
+      - tag: component
+        value: replication
+      - tag: scope
+        value: health
+      trends: 365d
+      valuemap:
+        name: NOMMA binary status
+    - uuid: d2fef4aa42844195a17df7371aac2505
+      name: 'Hyper-V Replica: Relationships total'
+      type: DEPENDENT
+      key: hyperv.replica.total
+      delay: '0'
+      history: 30d
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.host.replica_total
+      master_item:
+        key: hyperv.collect
+      tags:
+      - tag: component
+        value: replication
+      - tag: scope
+        value: health
+      trends: 365d
+    - uuid: 9392ff6398a040b79ce1c79a3cc7fa21
+      name: 'Hyper-V Replica: Warning relationships'
+      type: DEPENDENT
+      key: hyperv.replica.warning
+      delay: '0'
+      history: 30d
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.host.replica_warning
+      master_item:
+        key: hyperv.collect
+      tags:
+      - tag: component
+        value: replication
+      - tag: scope
+        value: health
+      trends: 365d
+    - uuid: 6a50ce84436d4c088c8d6f5218985300
+      name: 'Hyper-V Replica: Critical relationships'
+      type: DEPENDENT
+      key: hyperv.replica.critical
+      delay: '0'
+      history: 30d
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.host.replica_critical
+      master_item:
+        key: hyperv.collect
+      tags:
+      - tag: component
+        value: replication
+      - tag: scope
+        value: health
+      trends: 365d
+    - uuid: 3dcf0b4b9bc64c0d89f82ef4a1784346
+      name: 'Hyper-V Replica: Oldest replication lag'
+      type: DEPENDENT
+      key: hyperv.replica.oldest_lag
+      delay: '0'
+      history: 30d
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.host.oldest_replication_lag_seconds
+      master_item:
+        key: hyperv.collect
+      tags:
+      - tag: component
+        value: replication
+      - tag: scope
+        value: health
+      units: s
+      trends: 365d
+    - uuid: 5f81af911cd447beb921a4d8988fa5ff
+      name: 'Hyper-V Cluster: Cluster detected'
+      type: DEPENDENT
+      key: hyperv.cluster.present
+      delay: '0'
+      history: 30d
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.host.cluster_present
+      master_item:
+        key: hyperv.collect
+      tags:
+      - tag: component
+        value: cluster
+      - tag: scope
+        value: health
+      trends: 365d
+      valuemap:
+        name: NOMMA binary status
+    - uuid: a6e09e836f424730b8dfa6d9f2c7c982
+      name: 'Hyper-V Cluster: Cluster service state'
+      type: DEPENDENT
+      key: hyperv.cluster.service
+      delay: '0'
+      history: 30d
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.host.cluster_service
+      master_item:
+        key: hyperv.collect
+      tags:
+      - tag: component
+        value: cluster
+      - tag: scope
+        value: health
+      trends: 365d
+      valuemap:
+        name: NOMMA tri-state status
+    - uuid: e52b43a8f28c4dbeb6ffef2166cc157a
+      name: 'Hyper-V Cluster: Local node state'
+      type: DEPENDENT
+      key: hyperv.cluster.node_up
+      delay: '0'
+      history: 30d
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.host.cluster_node_up
+      master_item:
+        key: hyperv.collect
+      tags:
+      - tag: component
+        value: cluster
+      - tag: scope
+        value: health
+      trends: 365d
+      valuemap:
+        name: NOMMA tri-state status
+    - uuid: 5476dcaa4d9441e384e0fdbe68b16401
+      name: 'Hyper-V Replica Broker: Resource detected'
+      type: DEPENDENT
+      key: hyperv.cluster.broker_present
+      delay: '0'
+      history: 30d
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.host.replica_broker_present
+      master_item:
+        key: hyperv.collect
+      tags:
+      - tag: component
+        value: cluster
+      - tag: scope
+        value: health
+      trends: 365d
+      valuemap:
+        name: NOMMA binary status
+    - uuid: 86ed3dc32cb6437a9b6cd7846d7fa732
+      name: 'Hyper-V Replica Broker: Resource online'
+      type: DEPENDENT
+      key: hyperv.cluster.broker_online
+      delay: '0'
+      history: 30d
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.host.replica_broker_online
+      master_item:
+        key: hyperv.collect
+      tags:
+      - tag: component
+        value: cluster
+      - tag: scope
+        value: health
+      trends: 365d
+      valuemap:
+        name: NOMMA tri-state status
+    - uuid: 920ec618385d40569f5d20d232386463
+      name: 'Hyper-V Cluster: CSVs total'
+      type: DEPENDENT
+      key: hyperv.csv.total
+      delay: '0'
+      history: 30d
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.host.csv_total
+      master_item:
+        key: hyperv.collect
+      tags:
+      - tag: component
+        value: storage
+      - tag: scope
+        value: health
+      trends: 365d
+    - uuid: 3672af5d78274431aa1d9aaadb344199
+      name: 'Hyper-V Cluster: Unhealthy CSVs'
+      type: DEPENDENT
+      key: hyperv.csv.unhealthy
+      delay: '0'
+      history: 30d
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.host.csv_unhealthy
+      master_item:
+        key: hyperv.collect
+      tags:
+      - tag: component
+        value: storage
+      - tag: scope
+        value: health
+      trends: 365d
+    - uuid: 183f8d13aebc46f4b930e0f1d75e937a
+      name: 'Hyper-V Network: External switches total'
+      type: DEPENDENT
+      key: hyperv.switch.total
+      delay: '0'
+      history: 30d
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.host.external_switch_total
+      master_item:
+        key: hyperv.collect
+      tags:
+      - tag: component
+        value: network
+      - tag: scope
+        value: health
+      trends: 365d
+    - uuid: c9e8acd56ef94387b0ffcf41ba7e8b43
+      name: 'Hyper-V Network: External switches down'
+      type: DEPENDENT
+      key: hyperv.switch.down
+      delay: '0'
+      history: 30d
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.host.external_switch_down
+      master_item:
+        key: hyperv.collect
+      tags:
+      - tag: component
+        value: network
+      - tag: scope
+        value: health
+      trends: 365d
+    - uuid: 6f3e1d558dbc47bea702fd4c0d0c89c5
+      name: 'Hyper-V Storage: Minimum fixed-volume free space'
+      type: DEPENDENT
+      key: hyperv.volume.min_free
+      delay: '0'
+      history: 30d
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.host.volume_min_free_percent
+      master_item:
+        key: hyperv.collect
+      tags:
+      - tag: component
+        value: storage
+      - tag: scope
+        value: health
+      value_type: FLOAT
+      units: '%'
+      trends: 365d
+    - uuid: 50332f798d144e5298ed5777b8843f83
+      name: 'Hyper-V: Recent critical/error event count'
+      type: DEPENDENT
+      key: hyperv.events.critical
+      delay: '0'
+      history: 30d
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.host.critical_event_count
+      master_item:
+        key: hyperv.collect
+      tags:
+      - tag: component
+        value: eventlog
+      - tag: scope
+        value: health
+      trends: 365d
+    - uuid: 601e38ea018b4881b21d3160c75c2b03
+      name: 'Hyper-V Capacity: CPU utilization'
+      type: DEPENDENT
+      key: hyperv.capacity.cpu
+      delay: '0'
+      history: 30d
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.host.cpu_percent
+      master_item:
+        key: hyperv.collect
+      tags:
+      - tag: component
+        value: capacity
+      - tag: scope
+        value: health
+      value_type: FLOAT
+      units: '%'
+      trends: 365d
+    - uuid: 912fb6cf39e344edb7930cd0537aaab1
+      name: 'Hyper-V Capacity: Available physical memory'
+      type: DEPENDENT
+      key: hyperv.capacity.memory_available
+      delay: '0'
+      history: 30d
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.host.memory_available_percent
+      master_item:
+        key: hyperv.collect
+      tags:
+      - tag: component
+        value: capacity
+      - tag: scope
+        value: health
+      value_type: FLOAT
+      units: '%'
+      trends: 365d
+    - uuid: 165f719558944dd1a0de7ede6449e38a
+      name: 'Hyper-V Backup: Monitoring enabled'
+      type: DEPENDENT
+      key: hyperv.backup.enabled
+      delay: '0'
+      history: 30d
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.backup.enabled
+      master_item:
+        key: hyperv.collect
+      tags:
+      - tag: component
+        value: backup
+      - tag: scope
+        value: health
+      trends: 365d
+      valuemap:
+        name: NOMMA binary status
+    - uuid: 7472d01b54134b33a357714f1985b5b0
+      name: 'Hyper-V Backup: Last job status'
+      type: DEPENDENT
+      key: hyperv.backup.status
+      delay: '0'
+      history: 30d
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.backup.status
+      master_item:
+        key: hyperv.collect
+      tags:
+      - tag: component
+        value: backup
+      - tag: scope
+        value: health
+      trends: 365d
+      valuemap:
+        name: NOMMA backup status
+    - uuid: 28e90bb58c4646c8b8ce7d2b56a283f2
+      name: 'Hyper-V Backup: Age of last success'
+      type: DEPENDENT
+      key: hyperv.backup.age
+      delay: '0'
+      history: 30d
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.backup.age_seconds
+      master_item:
+        key: hyperv.collect
+      tags:
+      - tag: component
+        value: backup
+      - tag: scope
+        value: health
+      units: s
+      trends: 365d
+    discovery_rules:
+    - uuid: abfc6bea923c4e31be0fa83d68262ef4
+      name: Hyper-V VM discovery
+      type: DEPENDENT
+      key: hyperv.vm.discovery
+      delay: '0'
+      lifetime: 7d
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.vms
+      master_item:
+        key: hyperv.collect
+      item_prototypes:
+      - uuid: 962baba541c942c1949ec09be2e580fc
+        name: 'VM {#VMNAME}: State'
+        type: DEPENDENT
+        key: hyperv.vm.state["{#VMID}"]
+        delay: '0'
+        history: 30d
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.vms[?(@.id == "{#VMID}")].state.first()
+        master_item:
+          key: hyperv.collect
+        tags:
+        - tag: component
+          value: vm
+        - tag: scope
+          value: health
+        valuemap:
+          name: NOMMA Hyper-V VM state
+        trigger_prototypes:
+        - uuid: 552c49ca03cb405e88118a77ae718d45
+          expression: '{$HYPERV.VM.MONITOR:"{#VMID}"}=1 and last(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.collector.ok)=1 and last(/NOMMA Hyper-V and Replica
+            by Zabbix agent/hyperv.service.vmms)=1 and last(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.vm.state["{#VMID}"],#1)<>{$HYPERV.VM.EXPECTED.STATE:"{#VMID}"}
+            and last(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.vm.state["{#VMID}"],#2)<>{$HYPERV.VM.EXPECTED.STATE:"{#VMID}"}'
+          name: 'Hyper-V VM {#VMNAME}: Unexpected power state'
+          priority: AVERAGE
+          description: Set a context macro by VM ID to disable monitoring or change the expected state for intentionally stopped VMs.
+          tags:
+          - tag: scope
+            value: health
+          recovery_mode: RECOVERY_EXPRESSION
+          recovery_expression: last(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.vm.state["{#VMID}"])={$HYPERV.VM.EXPECTED.STATE:"{#VMID}"} or {$HYPERV.VM.MONITOR:"{#VMID}"}=0
+      - uuid: b6b8813fbd3848929a2f5cc60b7480c2
+        name: 'VM {#VMNAME}: Health'
+        type: DEPENDENT
+        key: hyperv.vm.health["{#VMID}"]
+        delay: '0'
+        history: 30d
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.vms[?(@.id == "{#VMID}")].health.first()
+        master_item:
+          key: hyperv.collect
+        tags:
+        - tag: component
+          value: vm
+        - tag: scope
+          value: health
+        valuemap:
+          name: NOMMA binary status
+        trigger_prototypes:
+        - uuid: 592748f9ca9445c7bd70228c97b4ef23
+          expression: '{$HYPERV.VM.MONITOR:"{#VMID}"}=1 and last(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.collector.ok)=1 and last(/NOMMA Hyper-V and Replica
+            by Zabbix agent/hyperv.service.vmms)=1 and min(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.vm.health["{#VMID}"],5m)=0'
+          name: 'Hyper-V VM {#VMNAME}: Health is critical'
+          priority: HIGH
+          description: ''
+          tags:
+          - tag: scope
+            value: availability
+          recovery_mode: RECOVERY_EXPRESSION
+          recovery_expression: last(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.vm.health["{#VMID}"])=1 or {$HYPERV.VM.MONITOR:"{#VMID}"}=0
+      - uuid: 56f098cabe4b4ad5b87068e5ac0bd1c0
+        name: 'VM {#VMNAME}: Heartbeat'
+        type: DEPENDENT
+        key: hyperv.vm.heartbeat["{#VMID}"]
+        delay: '0'
+        history: 30d
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.vms[?(@.id == "{#VMID}")].heartbeat.first()
+        master_item:
+          key: hyperv.collect
+        tags:
+        - tag: component
+          value: vm
+        - tag: scope
+          value: health
+        valuemap:
+          name: NOMMA heartbeat status
+        trigger_prototypes:
+        - uuid: f573bb6e34ba49a2a07b4c3dcb46498e
+          expression: '{$HYPERV.VM.MONITOR:"{#VMID}"}=1 and last(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.collector.ok)=1 and last(/NOMMA Hyper-V and Replica
+            by Zabbix agent/hyperv.vm.state["{#VMID}"])=1 and max(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.vm.heartbeat["{#VMID}"],5m)=0'
+          name: 'Hyper-V VM {#VMNAME}: Heartbeat is unavailable'
+          priority: AVERAGE
+          description: ''
+          tags:
+          - tag: scope
+            value: health
+          recovery_mode: RECOVERY_EXPRESSION
+          recovery_expression: last(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.vm.heartbeat["{#VMID}"])=1 or last(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.vm.state["{#VMID}"])<>1
+            or {$HYPERV.VM.MONITOR:"{#VMID}"}=0
+      - uuid: 7e19446d07aa4fa9845b959c39cf4298
+        name: 'VM {#VMNAME}: Uptime'
+        type: DEPENDENT
+        key: hyperv.vm.uptime["{#VMID}"]
+        delay: '0'
+        history: 30d
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.vms[?(@.id == "{#VMID}")].uptime_seconds.first()
+        master_item:
+          key: hyperv.collect
+        tags:
+        - tag: component
+          value: vm
+        - tag: scope
+          value: health
+        units: uptime
+    - uuid: 1ff71a92025846d4ae15493d54dd0f01
+      name: Hyper-V Replica discovery
+      type: DEPENDENT
+      key: hyperv.replica.discovery
+      delay: '0'
+      lifetime: 7d
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.replicas
+      master_item:
+        key: hyperv.collect
+      item_prototypes:
+      - uuid: 776e10d91744485e9c0246300fde9965
+        name: 'Replica {#REPLICANAME}: Health'
+        type: DEPENDENT
+        key: hyperv.replica.health["{#REPLICAID}"]
+        delay: '0'
+        history: 30d
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.replicas[?(@.id == "{#REPLICAID}")].health.first()
+        master_item:
+          key: hyperv.collect
+        tags:
+        - tag: component
+          value: replication
+        - tag: scope
+          value: health
+        valuemap:
+          name: NOMMA replica health
+        trigger_prototypes:
+        - uuid: fa4fc9618d7b45b893682d1a90b0f065
+          expression: '{$HYPERV.REPLICA.MONITOR:"{#REPLICAID}"}=1 and last(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.collector.ok)=1 and min(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.replica.health["{#REPLICAID}"],5m)=2 and
+            max(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.replica.health["{#REPLICAID}"],5m)=2'
+          name: 'Hyper-V Replica {#REPLICANAME}: Health warning'
+          priority: WARNING
+          description: ''
+          tags:
+          - tag: scope
+            value: health
+          recovery_mode: RECOVERY_EXPRESSION
+          recovery_expression: last(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.replica.health["{#REPLICAID}"])<>2 or {$HYPERV.REPLICA.MONITOR:"{#REPLICAID}"}=0
+        - uuid: d0e20c0983e24a7ab167d949c434e847
+          expression: '{$HYPERV.REPLICA.MONITOR:"{#REPLICAID}"}=1 and last(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.collector.ok)=1 and min(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.replica.health["{#REPLICAID}"],3m)=3'
+          name: 'Hyper-V Replica {#REPLICANAME}: Health critical'
+          priority: HIGH
+          description: ''
+          tags:
+          - tag: scope
+            value: availability
+          recovery_mode: RECOVERY_EXPRESSION
+          recovery_expression: last(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.replica.health["{#REPLICAID}"])<>3 or {$HYPERV.REPLICA.MONITOR:"{#REPLICAID}"}=0
+      - uuid: b7dd2d9e56df4e1483a53b0f0cf54532
+        name: 'Replica {#REPLICANAME}: State'
+        type: DEPENDENT
+        key: hyperv.replica.state["{#REPLICAID}"]
+        delay: '0'
+        history: 30d
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.replicas[?(@.id == "{#REPLICAID}")].state.first()
+        master_item:
+          key: hyperv.collect
+        tags:
+        - tag: component
+          value: replication
+        - tag: scope
+          value: health
+        valuemap:
+          name: NOMMA replica state
+        trigger_prototypes:
+        - uuid: df13c4ba9dd54cd18ba9120f322cccb8
+          expression: '{$HYPERV.REPLICA.MONITOR:"{#REPLICAID}"}=1 and last(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.collector.ok)=1 and last(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.replica.health["{#REPLICAID}"])<>3 and
+            (min(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.replica.state["{#REPLICAID}"],5m)=4 or min(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.replica.state["{#REPLICAID}"],5m)=5
+            or min(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.replica.state["{#REPLICAID}"],5m)=9)'
+          name: 'Hyper-V Replica {#REPLICANAME}: Replication state is failed or suspended'
+          priority: HIGH
+          description: ''
+
+          tags:
+          - tag: scope
+            value: availability
+          recovery_mode: RECOVERY_EXPRESSION
+          recovery_expression: last(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.replica.state["{#REPLICAID}"])=1 or last(/NOMMA Hyper-V and Replica by Zabbix
+            agent/hyperv.replica.state["{#REPLICAID}"])=2 or {$HYPERV.REPLICA.MONITOR:"{#REPLICAID}"}=0
+      - uuid: b046d7c2f9364f81ba6e8c54e0b7a335
+        name: 'Replica {#REPLICANAME}: Mode'
+        type: DEPENDENT
+        key: hyperv.replica.mode["{#REPLICAID}"]
+        delay: '0'
+        history: 30d
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.replicas[?(@.id == "{#REPLICAID}")].mode.first()
+        master_item:
+          key: hyperv.collect
+        tags:
+        - tag: component
+          value: replication
+        - tag: scope
+          value: health
+        value_type: CHAR
+      - uuid: 9aec8811ca264c6fa8dcf63b4ae44949
+        name: 'Replica {#REPLICANAME}: Last successful replication'
+        type: DEPENDENT
+        key: hyperv.replica.last["{#REPLICAID}"]
+        delay: '0'
+        history: 30d
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.replicas[?(@.id == "{#REPLICAID}")].last_replication_epoch.first()
+        master_item:
+          key: hyperv.collect
+        tags:
+        - tag: component
+          value: replication
+        - tag: scope
+          value: health
+        units: unixtime
+      - uuid: 784582c591ad4f6cbf1899c8ea63e9ad
+        name: 'Replica {#REPLICANAME}: Replication lag'
+        type: DEPENDENT
+        key: hyperv.replica.lag["{#REPLICAID}"]
+        delay: '0'
+        history: 30d
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.replicas[?(@.id == "{#REPLICAID}")].lag_seconds.first()
+        master_item:
+          key: hyperv.collect
+        tags:
+        - tag: component
+          value: replication
+        - tag: scope
+          value: health
+        units: s
+        trigger_prototypes:
+        - uuid: 278960e379e84980862b673e161f9404
+          expression: '{$HYPERV.REPLICA.MONITOR:"{#REPLICAID}"}=1 and last(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.collector.ok)=1 and last(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.replica.health["{#REPLICAID}"])<>3 and
+            min(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.replica.lag["{#REPLICAID}"],10m)>{$HYPERV.REPLICA.LAG.WARN} and min(/NOMMA Hyper-V and Replica by
+            Zabbix agent/hyperv.replica.lag["{#REPLICAID}"],10m)<={$HYPERV.REPLICA.LAG.CRIT}'
+          name: 'Hyper-V Replica {#REPLICANAME}: Replication lag is high'
+          priority: WARNING
+          description: ''
+          tags:
+          - tag: scope
+            value: health
+          recovery_mode: RECOVERY_EXPRESSION
+          recovery_expression: last(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.replica.lag["{#REPLICAID}"])<{$HYPERV.REPLICA.LAG.RECOVERY} or {$HYPERV.REPLICA.MONITOR:"{#REPLICAID}"}=0
+        - uuid: 11f47a157dc94be3b635be431d47e368
+          expression: '{$HYPERV.REPLICA.MONITOR:"{#REPLICAID}"}=1 and last(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.collector.ok)=1 and min(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.replica.lag["{#REPLICAID}"],5m)>{$HYPERV.REPLICA.LAG.CRIT}'
+          name: 'Hyper-V Replica {#REPLICANAME}: Replication lag is critical'
+          priority: HIGH
+          description: ''
+          tags:
+          - tag: scope
+            value: availability
+          recovery_mode: RECOVERY_EXPRESSION
+          recovery_expression: last(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.replica.lag["{#REPLICAID}"])<{$HYPERV.REPLICA.LAG.WARN} or {$HYPERV.REPLICA.MONITOR:"{#REPLICAID}"}=0
+      - uuid: b263477981694e08935945ddb43613cc
+        name: 'Replica {#REPLICANAME}: Replication errors'
+        type: DEPENDENT
+        key: hyperv.replica.errors["{#REPLICAID}"]
+        delay: '0'
+        history: 30d
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.replicas[?(@.id == "{#REPLICAID}")].errors.first()
+        master_item:
+          key: hyperv.collect
+        tags:
+        - tag: component
+          value: replication
+        - tag: scope
+          value: health
+        trigger_prototypes:
+        - uuid: d16bc2f13fb845bf9cbc29abde71aa0b
+          expression: '{$HYPERV.REPLICA.MONITOR:"{#REPLICAID}"}=1 and last(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.collector.ok)=1 and last(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.replica.health["{#REPLICAID}"])<>3 and
+            min(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.replica.errors["{#REPLICAID}"],5m)>0'
+          name: 'Hyper-V Replica {#REPLICANAME}: Replication errors present'
+          priority: WARNING
+          description: ''
+          tags:
+          - tag: scope
+            value: health
+          recovery_mode: RECOVERY_EXPRESSION
+          recovery_expression: last(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.replica.errors["{#REPLICAID}"])=0 or {$HYPERV.REPLICA.MONITOR:"{#REPLICAID}"}=0
+      - uuid: 6573a2f4eeb1415b8e549a4c5307940d
+        name: 'Replica {#REPLICANAME}: Replication backlog'
+        type: DEPENDENT
+        key: hyperv.replica.backlog["{#REPLICAID}"]
+        delay: '0'
+        history: 30d
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.replicas[?(@.id == "{#REPLICAID}")].backlog_bytes.first()
+        master_item:
+          key: hyperv.collect
+        tags:
+        - tag: component
+          value: replication
+        - tag: scope
+          value: health
+        units: B
+        trigger_prototypes:
+        - uuid: 447c02e457bd41d69877825190704157
+          expression: '{$HYPERV.REPLICA.MONITOR:"{#REPLICAID}"}=1 and last(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.collector.ok)=1 and min(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.replica.backlog["{#REPLICAID}"],10m)>{$HYPERV.REPLICA.BACKLOG.WARN}'
+          name: 'Hyper-V Replica {#REPLICANAME}: Backlog is high'
+          priority: WARNING
+          description: ''
+          tags:
+          - tag: scope
+            value: health
+          recovery_mode: RECOVERY_EXPRESSION
+          recovery_expression: last(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.replica.backlog["{#REPLICAID}"])<{$HYPERV.REPLICA.BACKLOG.RECOVERY} or {$HYPERV.REPLICA.MONITOR:"{#REPLICAID}"}=0
+      - uuid: c7407298e5f34a41b97ecc6ca89313a8
+        name: 'Replica {#REPLICANAME}: Resynchronizing'
+        type: DEPENDENT
+        key: hyperv.replica.resync["{#REPLICAID}"]
+        delay: '0'
+        history: 30d
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.replicas[?(@.id == "{#REPLICAID}")].resynchronizing.first()
+        master_item:
+          key: hyperv.collect
+        tags:
+        - tag: component
+          value: replication
+        - tag: scope
+          value: health
+        valuemap:
+          name: NOMMA binary status
+        trigger_prototypes:
+        - uuid: c8027c9be79b45c1b516f84b7f24066f
+          expression: '{$HYPERV.REPLICA.MONITOR:"{#REPLICAID}"}=1 and last(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.collector.ok)=1 and min(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.replica.resync["{#REPLICAID}"],{$HYPERV.REPLICA.RESYNC.MAX})=1'
+          name: 'Hyper-V Replica {#REPLICANAME}: Resynchronization is prolonged'
+          priority: WARNING
+          description: ''
+          tags:
+          - tag: scope
+            value: health
+          recovery_mode: RECOVERY_EXPRESSION
+          recovery_expression: last(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.replica.resync["{#REPLICAID}"])=0 or {$HYPERV.REPLICA.MONITOR:"{#REPLICAID}"}=0
+      - uuid: 79ca66495a8245808b973d06f43a786b
+        name: 'Replica {#REPLICANAME}: Failover readiness'
+        type: DEPENDENT
+        key: hyperv.replica.ready["{#REPLICAID}"]
+        delay: '0'
+        history: 30d
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.replicas[?(@.id == "{#REPLICAID}")].failover_ready.first()
+        master_item:
+          key: hyperv.collect
+        tags:
+        - tag: component
+          value: replication
+        - tag: scope
+          value: health
+        valuemap:
+          name: NOMMA binary status
+        trigger_prototypes:
+        - uuid: e7e9ce1b8ee142328f8cfee979caa007
+          expression: '{$HYPERV.REPLICA.MONITOR:"{#REPLICAID}"}=1 and last(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.collector.ok)=1 and last(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.replica.health["{#REPLICAID}"])=1 and
+            last(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.replica.resync["{#REPLICAID}"])=0 and max(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.replica.ready["{#REPLICAID}"],15m)=0'
+          name: 'Hyper-V Replica {#REPLICANAME}: Failover readiness check failed'
+          priority: WARNING
+          description: ''
+          tags:
+          - tag: scope
+            value: health
+          recovery_mode: RECOVERY_EXPRESSION
+          recovery_expression: last(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.replica.ready["{#REPLICAID}"])=1 or {$HYPERV.REPLICA.MONITOR:"{#REPLICAID}"}=0
+    - uuid: 89e01e38c19f46e4ba54beacb90e368b
+      name: Hyper-V fixed volume discovery
+      type: DEPENDENT
+      key: hyperv.volume.discovery
+      delay: '0'
+      lifetime: 7d
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.volumes
+      master_item:
+        key: hyperv.collect
+      item_prototypes:
+      - uuid: 5557212396ff47e18236ed998759c305
+        name: 'Volume {#VOLUMENAME}: Free space'
+        type: DEPENDENT
+        key: hyperv.volume.free["{#VOLUMEID}"]
+        delay: '0'
+        history: 30d
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.volumes[?(@.id == "{#VOLUMEID}")].free_percent.first()
+        master_item:
+          key: hyperv.collect
+        tags:
+        - tag: component
+          value: storage
+        - tag: scope
+          value: health
+        value_type: FLOAT
+        units: '%'
+        trigger_prototypes:
+        - uuid: 5504bed18c83440b9e30fec40fe2ef42
+          expression: '{$HYPERV.VOLUME.MONITOR:"{#VOLUMEID}"}=1 and max(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.volume.free["{#VOLUMEID}"],10m)<{$HYPERV.VOLUME.WARN}
+            and max(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.volume.free["{#VOLUMEID}"],10m)>={$HYPERV.VOLUME.CRIT}'
+          name: 'Hyper-V Volume {#VOLUMENAME}: Free space is low'
+          priority: WARNING
+          description: ''
+          tags:
+          - tag: scope
+            value: health
+          recovery_mode: RECOVERY_EXPRESSION
+          recovery_expression: last(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.volume.free["{#VOLUMEID}"])>{$HYPERV.VOLUME.RECOVERY} or {$HYPERV.VOLUME.MONITOR:"{#VOLUMEID}"}=0
+        - uuid: e1cdbccbe2c64c8aaf996bcc51a5fc37
+          expression: '{$HYPERV.VOLUME.MONITOR:"{#VOLUMEID}"}=1 and max(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.volume.free["{#VOLUMEID}"],5m)<{$HYPERV.VOLUME.CRIT}'
+          name: 'Hyper-V Volume {#VOLUMENAME}: Free space is critical'
+          priority: HIGH
+          description: ''
+          tags:
+          - tag: scope
+            value: availability
+          recovery_mode: RECOVERY_EXPRESSION
+          recovery_expression: last(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.volume.free["{#VOLUMEID}"])>{$HYPERV.VOLUME.WARN} or {$HYPERV.VOLUME.MONITOR:"{#VOLUMEID}"}=0
+    - uuid: 98da5fd623434f50a450ced5a9984a15
+      name: Hyper-V Cluster Shared Volume discovery
+      type: DEPENDENT
+      key: hyperv.csv.discovery
+      delay: '0'
+      lifetime: 7d
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.csvs
+      master_item:
+        key: hyperv.collect
+      item_prototypes:
+      - uuid: 1f88830dc4644987827dc9be60f46c08
+        name: 'CSV {#CSVNAME}: State'
+        type: DEPENDENT
+        key: hyperv.csv.state["{#CSVID}"]
+        delay: '0'
+        history: 30d
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.csvs[?(@.id == "{#CSVID}")].state.first()
+        master_item:
+          key: hyperv.collect
+        tags:
+        - tag: component
+          value: storage
+        - tag: scope
+          value: health
+        valuemap:
+          name: NOMMA binary status
+        trigger_prototypes:
+        - uuid: 632050e2dd4b4a97bab7f20ef88db1f2
+          expression: last(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.cluster.service)=1 and max(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.csv.state["{#CSVID}"],3m)=0
+          name: 'Hyper-V CSV {#CSVNAME}: Not online'
+          priority: HIGH
+          description: ''
+          tags:
+          - tag: scope
+            value: availability
+          recovery_mode: RECOVERY_EXPRESSION
+          recovery_expression: last(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.csv.state["{#CSVID}"])=1 or last(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.cluster.present)=0
+      - uuid: b1faadf9e98245a4a851f08c2e590724
+        name: 'CSV {#CSVNAME}: Free space'
+        type: DEPENDENT
+        key: hyperv.csv.free["{#CSVID}"]
+        delay: '0'
+        history: 30d
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.csvs[?(@.id == "{#CSVID}")].free_percent.first()
+        master_item:
+          key: hyperv.collect
+        tags:
+        - tag: component
+          value: storage
+        - tag: scope
+          value: health
+        value_type: FLOAT
+        units: '%'
+        trigger_prototypes:
+        - uuid: 5c8b2fd4d33e4747afa65b6cad3409f5
+          expression: max(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.csv.free["{#CSVID}"],10m)<{$HYPERV.CSV.WARN} and max(/NOMMA Hyper-V and Replica by Zabbix
+            agent/hyperv.csv.free["{#CSVID}"],10m)>={$HYPERV.CSV.CRIT}
+          name: 'Hyper-V CSV {#CSVNAME}: Free space is low'
+          priority: WARNING
+          description: ''
+          tags:
+          - tag: scope
+            value: health
+          recovery_mode: RECOVERY_EXPRESSION
+          recovery_expression: last(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.csv.free["{#CSVID}"])>{$HYPERV.CSV.RECOVERY}
+        - uuid: 7ccee0563043409f9c5c50f08d51fd20
+          expression: max(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.csv.free["{#CSVID}"],5m)<{$HYPERV.CSV.CRIT}
+          name: 'Hyper-V CSV {#CSVNAME}: Free space is critical'
+          priority: HIGH
+          description: ''
+          tags:
+          - tag: scope
+            value: availability
+          recovery_mode: RECOVERY_EXPRESSION
+          recovery_expression: last(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.csv.free["{#CSVID}"])>{$HYPERV.CSV.WARN}
+    - uuid: 935a8ce035f84a28a6e59370fd3142d7
+      name: Hyper-V external switch discovery
+      type: DEPENDENT
+      key: hyperv.switch.discovery
+      delay: '0'
+      lifetime: 7d
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.switches
+      master_item:
+        key: hyperv.collect
+      item_prototypes:
+      - uuid: 48f454723b9f4019af7d19e153dbd06e
+        name: 'External switch {#SWITCHNAME}: Uplink state'
+        type: DEPENDENT
+        key: hyperv.switch.up["{#SWITCHID}"]
+        delay: '0'
+        history: 30d
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.switches[?(@.id == "{#SWITCHID}")].up.first()
+        master_item:
+          key: hyperv.collect
+        tags:
+        - tag: component
+          value: network
+        - tag: scope
+          value: health
+        valuemap:
+          name: NOMMA binary status
+        trigger_prototypes:
+        - uuid: 89e4d317386441afb80226d374a573ce
+          expression: '{$HYPERV.SWITCH.MONITOR:"{#SWITCHID}"}=1 and last(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.service.vmms)=1 and max(/NOMMA Hyper-V
+            and Replica by Zabbix agent/hyperv.switch.up["{#SWITCHID}"],3m)=0'
+          name: 'Hyper-V External switch {#SWITCHNAME}: Uplink is down'
+          priority: HIGH
+          description: ''
+          tags:
+          - tag: scope
+            value: availability
+          recovery_mode: RECOVERY_EXPRESSION
+          recovery_expression: last(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.switch.up["{#SWITCHID}"])=1 or {$HYPERV.SWITCH.MONITOR:"{#SWITCHID}"}=0
+    - uuid: 2003ed070a5442b9880aaf059e8b27aa
+      name: Hyper-V Replica certificate discovery
+      type: DEPENDENT
+      key: hyperv.cert.discovery
+      delay: '0'
+      lifetime: 7d
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.certificates
+      master_item:
+        key: hyperv.collect
+      item_prototypes:
+      - uuid: 7ccee54eb3eb46bfba6035f62c1974df
+        name: 'Replica certificate {#CERTNAME}: Valid'
+        type: DEPENDENT
+        key: hyperv.cert.valid["{#CERTID}"]
+        delay: '0'
+        history: 30d
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.certificates[?(@.id == "{#CERTID}")].valid.first()
+        master_item:
+          key: hyperv.collect
+        tags:
+        - tag: component
+          value: certificate
+        - tag: scope
+          value: health
+        valuemap:
+          name: NOMMA binary status
+        trigger_prototypes:
+        - uuid: 4683a8ecfdf747a18ddb48c12ff94f06
+          expression: max(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.cert.valid["{#CERTID}"],3m)=0
+          name: 'Hyper-V Replica certificate {#CERTNAME}: Missing or invalid'
+          priority: HIGH
+          description: ''
+          tags:
+          - tag: scope
+            value: availability
+          recovery_mode: RECOVERY_EXPRESSION
+          recovery_expression: last(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.cert.valid["{#CERTID}"])=1
+      - uuid: 13d686f8a96c4939a910720eb7b4eda0
+        name: 'Replica certificate {#CERTNAME}: Days remaining'
+        type: DEPENDENT
+        key: hyperv.cert.days["{#CERTID}"]
+        delay: '0'
+        history: 30d
+        preprocessing:
+        - type: JSONPATH
+          parameters:
+          - $.certificates[?(@.id == "{#CERTID}")].days_remaining.first()
+        master_item:
+          key: hyperv.collect
+        tags:
+        - tag: component
+          value: certificate
+        - tag: scope
+          value: health
+        units: d
+        trigger_prototypes:
+        - uuid: 8887608d7684467590eb0d65f9fdc459
+          expression: max(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.cert.days["{#CERTID}"],1h)<{$HYPERV.CERT.WARN} and max(/NOMMA Hyper-V and Replica by Zabbix
+            agent/hyperv.cert.days["{#CERTID}"],1h)>={$HYPERV.CERT.CRIT}
+          name: 'Hyper-V Replica certificate {#CERTNAME}: Expiring soon'
+          priority: WARNING
+          description: ''
+          tags:
+          - tag: scope
+            value: health
+          recovery_mode: RECOVERY_EXPRESSION
+          recovery_expression: last(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.cert.days["{#CERTID}"])>{$HYPERV.CERT.RECOVERY}
+        - uuid: 4de3d89a582c423793a46fad5ab760b1
+          expression: max(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.cert.days["{#CERTID}"],1h)<{$HYPERV.CERT.CRIT}
+          name: 'Hyper-V Replica certificate {#CERTNAME}: Expiry is critical'
+          priority: HIGH
+          description: ''
+          tags:
+          - tag: scope
+            value: availability
+          recovery_mode: RECOVERY_EXPRESSION
+          recovery_expression: last(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.cert.days["{#CERTID}"])>{$HYPERV.CERT.WARN}
+    macros:
+    - macro: '{$HYPERV.VM.MONITOR}'
+      value: '1'
+      description: Default per-VM trigger enable. Override with VM-ID context = 0.
+    - macro: '{$HYPERV.VM.EXPECTED.STATE}'
+      value: '1'
+      description: 'Expected VM state: 1 Running; override by VM-ID context for intentional shutdowns.'
+    - macro: '{$HYPERV.REPLICA.MONITOR}'
+      value: '1'
+      description: Default per-replica trigger enable; context by replica VM ID.
+    - macro: '{$HYPERV.REPLICA.LAG.WARN}'
+      value: '600'
+      description: Warning replication lag in seconds.
+    - macro: '{$HYPERV.REPLICA.LAG.CRIT}'
+      value: '1800'
+      description: Critical replication lag in seconds.
+    - macro: '{$HYPERV.REPLICA.LAG.RECOVERY}'
+      value: '300'
+      description: Replication lag recovery in seconds.
+    - macro: '{$HYPERV.REPLICA.BACKLOG.WARN}'
+      value: '1073741824'
+      description: Warning backlog bytes.
+    - macro: '{$HYPERV.REPLICA.BACKLOG.RECOVERY}'
+      value: '536870912'
+      description: Backlog recovery bytes.
+    - macro: '{$HYPERV.REPLICA.RESYNC.MAX}'
+      value: 30m
+      description: Maximum normal resynchronization duration.
+    - macro: '{$HYPERV.VOLUME.MONITOR}'
+      value: '1'
+      description: Default fixed-volume trigger enable; context by volume ID.
+    - macro: '{$HYPERV.VOLUME.WARN}'
+      value: '15'
+      description: Fixed-volume warning free percent.
+    - macro: '{$HYPERV.VOLUME.CRIT}'
+      value: '8'
+      description: Fixed-volume critical free percent.
+    - macro: '{$HYPERV.VOLUME.RECOVERY}'
+      value: '18'
+      description: Fixed-volume recovery free percent.
+    - macro: '{$HYPERV.CSV.WARN}'
+      value: '20'
+      description: CSV warning free percent.
+    - macro: '{$HYPERV.CSV.CRIT}'
+      value: '10'
+      description: CSV critical free percent.
+    - macro: '{$HYPERV.CSV.RECOVERY}'
+      value: '25'
+      description: CSV recovery free percent.
+    - macro: '{$HYPERV.SWITCH.MONITOR}'
+      value: '1'
+      description: Default external switch trigger enable; context by switch ID.
+    - macro: '{$HYPERV.CPU.CRIT}'
+      value: '95'
+      description: Sustained CPU critical percent.
+    - macro: '{$HYPERV.CPU.RECOVERY}'
+      value: '85'
+      description: CPU recovery percent.
+    - macro: '{$HYPERV.MEM.WARN}'
+      value: '15'
+      description: Available memory warning percent.
+    - macro: '{$HYPERV.MEM.CRIT}'
+      value: '5'
+      description: Available memory critical percent.
+    - macro: '{$HYPERV.MEM.RECOVERY}'
+      value: '20'
+      description: Available memory recovery percent.
+    - macro: '{$HYPERV.BACKUP.WARN}'
+      value: '129600'
+      description: 'Backup age warning: 36 hours.'
+    - macro: '{$HYPERV.BACKUP.CRIT}'
+      value: '259200'
+      description: 'Backup age critical: 72 hours.'
+    - macro: '{$HYPERV.BACKUP.RECOVERY}'
+      value: '86400'
+      description: 'Backup age recovery: 24 hours.'
+    - macro: '{$HYPERV.CERT.WARN}'
+      value: '30'
+      description: Certificate warning days.
+    - macro: '{$HYPERV.CERT.CRIT}'
+      value: '14'
+      description: Certificate critical days.
+    - macro: '{$HYPERV.CERT.RECOVERY}'
+      value: '45'
+      description: Certificate recovery days.
+    valuemaps:
+    - uuid: dd08e7002d1441a5ab9b71d61bbb7328
+      name: NOMMA binary status
+      mappings:
+      - value: '0'
+        newvalue: No/Down/Failed
+      - value: '1'
+        newvalue: Yes/Up/Healthy
+    - uuid: 174defb07a554578a68498d040741174
+      name: NOMMA tri-state status
+      mappings:
+      - value: '-1'
+        newvalue: Not present/Not applicable
+      - value: '0'
+        newvalue: Down
+      - value: '1'
+        newvalue: Up
+    - uuid: 2367ef6711f34730b41ef50940be3218
+      name: NOMMA heartbeat status
+      mappings:
+      - value: '-1'
+        newvalue: Unknown
+      - value: '0'
+        newvalue: Unavailable/Disabled
+      - value: '1'
+        newvalue: OK
+      - value: '2'
+        newvalue: Degraded
+    - uuid: 73ea437eb6b54d3eb229ab067eaafe68
+      name: NOMMA Hyper-V VM state
+      mappings:
+      - value: '0'
+        newvalue: 'Off'
+      - value: '1'
+        newvalue: Running
+      - value: '2'
+        newvalue: Paused
+      - value: '3'
+        newvalue: Saved
+      - value: '4'
+        newvalue: Starting
+      - value: '5'
+        newvalue: Stopping
+      - value: '6'
+        newvalue: Critical
+      - value: '7'
+        newvalue: Other
+    - uuid: c5d2254cbb9a40d0aa38ba4b678ca610
+      name: NOMMA replica health
+      mappings:
+      - value: '0'
+        newvalue: Unknown
+      - value: '1'
+        newvalue: Normal
+      - value: '2'
+        newvalue: Warning
+      - value: '3'
+        newvalue: Critical
+    - uuid: a4dd0f19808a4466aa6a953bb15fe9ad
+      name: NOMMA replica state
+      mappings:
+      - value: '0'
+        newvalue: Unknown
+      - value: '1'
+        newvalue: Replicating
+      - value: '2'
+        newvalue: Prepared for failover
+      - value: '3'
+        newvalue: Resynchronizing
+      - value: '4'
+        newvalue: Suspended
+      - value: '5'
+        newvalue: Error
+      - value: '6'
+        newvalue: Ready for initial replication
+      - value: '7'
+        newvalue: Waiting for initial replication
+      - value: '8'
+        newvalue: Waiting to resynchronize
+      - value: '9'
+        newvalue: Resynchronize suspended
+      - value: '10'
+        newvalue: Recovery in progress
+      - value: '11'
+        newvalue: Failback in progress
+      - value: '12'
+        newvalue: Failback complete
+      - value: '13'
+        newvalue: Initial replication in progress
+      - value: '14'
+        newvalue: Failed over waiting completion
+      - value: '15'
+        newvalue: Failed over
+      - value: '16'
+        newvalue: Waiting for update completion
+      - value: '17'
+        newvalue: Waiting for repurpose completion
+      - value: '18'
+        newvalue: Prepared for synchronous replication
+      - value: '19'
+        newvalue: Prepared for group reverse replication
+      - value: '20'
+        newvalue: Test failover in progress
+      - value: '21'
+        newvalue: Disabled
+    - uuid: 390201f6f30a447d966fc8c71d15fc6d
+      name: NOMMA backup status
+      mappings:
+      - value: '0'
+        newvalue: Not monitored/No job
+      - value: '1'
+        newvalue: Success
+      - value: '2'
+        newvalue: Running
+      - value: '3'
+        newvalue: Failed
+  triggers:
+  - uuid: 559f1b47828344369e2c38afd1baf380
+    expression: nodata(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.collect,5m)=1
+    name: 'Hyper-V: No collector data'
+    priority: HIGH
+    description: The agent/UserParameter has returned no master-item data for five minutes.
+    tags:
+    - tag: scope
+      value: availability
+  - uuid: 56720a8932954214ae37e5aacc8d580e
+    expression: max(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.collector.ok,3m)=0
+    name: 'Hyper-V: Collector failed'
+    priority: HIGH
+    description: PowerShell could not collect core Hyper-V data. Check the collector error item.
+    tags:
+    - tag: scope
+      value: availability
+    recovery_mode: RECOVERY_EXPRESSION
+    recovery_expression: last(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.collector.ok)=1
+
+  - uuid: 41887afa7fd3462ba36e39ac3e7ed2ce
+    expression: last(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.cluster.present)=1 and max(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.cluster.service,3m)=0
+    name: 'Hyper-V Cluster: Cluster service is down'
+    priority: HIGH
+    description: ''
+    tags:
+    - tag: scope
+      value: availability
+    recovery_mode: RECOVERY_EXPRESSION
+    recovery_expression: last(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.cluster.service)=1 or last(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.cluster.present)=0
+  - uuid: ec3562bba4154d4692c8462c4a31e899
+    expression: last(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.cluster.present)=1 and last(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.cluster.service)=1
+      and max(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.cluster.node_up,3m)=0
+    name: 'Hyper-V Cluster: Local node is not Up'
+    priority: HIGH
+    description: ''
+    tags:
+    - tag: scope
+      value: availability
+    recovery_mode: RECOVERY_EXPRESSION
+    recovery_expression: last(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.cluster.node_up)=1 or last(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.cluster.present)=0
+  - uuid: e58987f1f794448b82e8e575b26b1ed1
+    expression: last(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.cluster.broker_present)=1 and last(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.cluster.service)=1
+      and max(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.cluster.broker_online,3m)=0
+    name: 'Hyper-V Replica Broker: Resource is offline'
+    priority: HIGH
+    description: ''
+    tags:
+    - tag: scope
+      value: availability
+    recovery_mode: RECOVERY_EXPRESSION
+    recovery_expression: last(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.cluster.broker_online)=1 or last(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.cluster.broker_present)=0
+  - uuid: 3f3afcd260df45b8972818201d5f0b16
+    expression: last(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.role.installed)=1 and min(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.events.critical,3m)>0
+    name: 'Hyper-V: Critical or error events detected'
+    priority: WARNING
+    description: At least one Level 1 or 2 event occurred in a configured Hyper-V event log during the rolling lookback window.
+    tags:
+    - tag: scope
+      value: health
+    recovery_mode: RECOVERY_EXPRESSION
+    recovery_expression: last(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.events.critical)=0
+  - uuid: eb4ef3bee4634db6b4e24ea3208009ab
+    expression: min(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.capacity.cpu,15m)>{$HYPERV.CPU.CRIT}
+    name: 'Hyper-V Capacity: CPU is critically exhausted'
+    priority: HIGH
+    description: ''
+    tags:
+    - tag: scope
+      value: availability
+    recovery_mode: RECOVERY_EXPRESSION
+    recovery_expression: max(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.capacity.cpu,10m)<{$HYPERV.CPU.RECOVERY}
+  - uuid: 7a937ac4e0a54d28a84b626a1468a69a
+    expression: max(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.capacity.memory_available,10m)<{$HYPERV.MEM.WARN}
+    name: 'Hyper-V Capacity: Available memory is low'
+    priority: WARNING
+    description: ''
+    tags:
+    - tag: scope
+      value: health
+    recovery_mode: RECOVERY_EXPRESSION
+    recovery_expression: min(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.capacity.memory_available,10m)>{$HYPERV.MEM.RECOVERY}
+  - uuid: e3a9fc959fd443649433e4a5142147c6
+    expression: max(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.capacity.memory_available,5m)<{$HYPERV.MEM.CRIT}
+    name: 'Hyper-V Capacity: Available memory is critically low'
+    priority: HIGH
+    description: ''
+    tags:
+    - tag: scope
+      value: availability
+    recovery_mode: RECOVERY_EXPRESSION
+    recovery_expression: min(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.capacity.memory_available,10m)>{$HYPERV.MEM.WARN}
+  - uuid: 59f4a003a6c44525b4c4b8231b63ca92
+    expression: last(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.backup.enabled)=1 and min(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.backup.status,5m)=3
+    name: 'Hyper-V Backup: Last job failed'
+    priority: HIGH
+    description: ''
+    tags:
+    - tag: scope
+      value: availability
+    recovery_mode: RECOVERY_EXPRESSION
+    recovery_expression: last(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.backup.status)=1 or last(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.backup.enabled)=0
+  - uuid: 01000dbe0433489988d20fb4bf81ac48
+    expression: last(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.backup.enabled)=1 and min(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.backup.age,30m)>{$HYPERV.BACKUP.WARN}
+      and min(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.backup.age,30m)<={$HYPERV.BACKUP.CRIT}
+    name: 'Hyper-V Backup: Last success is old'
+    priority: WARNING
+    description: ''
+    tags:
+    - tag: scope
+      value: health
+    recovery_mode: RECOVERY_EXPRESSION
+    recovery_expression: last(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.backup.age)<{$HYPERV.BACKUP.RECOVERY} or last(/NOMMA Hyper-V and Replica by Zabbix
+      agent/hyperv.backup.enabled)=0
+  - uuid: 675bb3d4744148f7aaca337936d392db
+    expression: last(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.backup.enabled)=1 and min(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.backup.age,30m)>{$HYPERV.BACKUP.CRIT}
+    name: 'Hyper-V Backup: Last success is critically old'
+    priority: HIGH
+    description: ''
+    tags:
+    - tag: scope
+      value: availability
+    recovery_mode: RECOVERY_EXPRESSION
+    recovery_expression: last(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.backup.age)<{$HYPERV.BACKUP.WARN} or last(/NOMMA Hyper-V and Replica by Zabbix agent/hyperv.backup.enabled)=0

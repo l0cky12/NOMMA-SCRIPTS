@@ -1,0 +1,12 @@
+{
+  "zabbix_version": "7.0.28",
+  "executed_utc": "2026-07-10",
+  "method": "configuration.import API against disposable Zabbix 7.0.28 server/frontend with PostgreSQL",
+  "import_result": true,
+  "update_imports_passed": 2,
+  "template": "NOMMA Hyper-V and Replica by Zabbix agent",
+  "imported_host_items": 31,
+  "imported_discovery_rules": 6,
+  "imported_host_triggers": 14,
+  "imported_value_maps": 7
+}
