@@ -15,6 +15,7 @@ There are no standalone `.ps1` files in this folder root.
 ### `Windows-AD-Server/`
 - `Cleanup-ADMetadata.ps1`
 - `Invoke-NOMMA-DC-CA-Diagnostics.ps1`
+- `Test-ADCSIssuingCAConnection.ps1` — read-only native AD CS Issuing CA connectivity and authentication validation for Windows endpoints
 
 ### `Windows-Endpoint-Management/`
 - `rename-pc.ps1`

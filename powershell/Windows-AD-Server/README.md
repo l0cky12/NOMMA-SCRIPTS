@@ -51,6 +51,28 @@ target answers on LDAP (TCP 389); this cannot be overridden.
 Runs secure channel, logon server, Kerberos, and `certutil` checks to show
 which DC and CA a server is using.
 
+### `Test-ADCSIssuingCAConnection.ps1`
+Safely tests DNS, native AD CS RPC/DCOM connectivity, current Windows identity
+CA access, and a read-only `certutil -ping` against a Windows AD CS Issuing CA.
+It never submits, approves, revokes, or deletes certificates. It supports an
+optional secure AD credential prompt for an LDAP authentication test, but does
+not claim that a `PSCredential` can impersonate native CA RPC/DCOM calls.
+
+Use it from a Windows endpoint with line-of-sight to the CA:
+
+```powershell
+.\Test-ADCSIssuingCAConnection.ps1 `
+    -CAServer 'CA01.contoso.com' `
+    -CAConfig 'CA01\Contoso Issuing CA' `
+    -DetailedTest
+```
+
+For an Entra-only joined device, native CA RPC requires a supported on-premises
+AD authentication path (normally Kerberos); an Entra sign-in alone is not
+sufficient. If that architecture is unavailable, deploy supported Certificate
+Enrollment Web Services (CEP/CES) rather than weakening Windows authentication
+or certificate security controls.
+
 ### Usage
 
 ```powershell
