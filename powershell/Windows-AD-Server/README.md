@@ -68,8 +68,10 @@ PFX for the Brother's **Import Certificate and Private Key** page. It does not
 change CA settings, templates, services, DNS, or printer settings.
 
 ```powershell
-.\New-BrotherPrinterTlsCertificate.ps1 -PrinterHost 'b-4024.nomma.tech'
+.\New-BrotherPrinterTlsCertificate.ps1
 ```
+
+When no `-PrinterHost` is supplied, the script prompts for the printer FQDN.
 
 ### `Test-ADCSIssuingCAConnection.ps1`
 Safely tests DNS, native AD CS RPC/DCOM connectivity, current Windows identity

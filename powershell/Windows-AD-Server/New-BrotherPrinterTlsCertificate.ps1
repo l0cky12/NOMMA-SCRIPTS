@@ -17,7 +17,7 @@
 #>
 [CmdletBinding()]
 param(
-    [string]$PrinterHost = 'b-4024.nomma.tech',
+    [string]$PrinterHost,
     [string]$CAConfig = 'ISSUING-CA01\NOMMA Issuing CA 01',
     [string]$Template = 'PrinterHTTPS',
     [string]$OutputDirectory = 'C:\Temp\BrotherTLS'
@@ -25,6 +25,16 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+
+if ([string]::IsNullOrWhiteSpace($PrinterHost)) {
+    $PrinterHost = Read-Host 'Enter the printer DNS name (for example, b-4024.nomma.tech)'
+}
+
+$PrinterHost = $PrinterHost.Trim().TrimEnd('.')
+if ($PrinterHost -notmatch '^(?=.{1,253}$)([A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z]{2,63}$') {
+    Write-Host "FAIL: '$PrinterHost' is not a valid fully qualified DNS name." -ForegroundColor Red
+    exit 1
+}
 
 function Fail([string]$Message) {
     Write-Host "FAIL: $Message" -ForegroundColor Red
