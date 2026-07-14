@@ -144,7 +144,7 @@ $StoreCert = Get-ChildItem Cert:\LocalMachine\My | Where-Object { $_.Thumbprint 
 if ($null -eq $StoreCert) { Fail 'Issued certificate was not found in LocalMachine\My after certreq -accept.' }
 
 $PfxPassword = Read-Host 'Set a temporary PFX password' -AsSecureString
-if ([string]::IsNullOrWhiteSpace($PfxPassword.GetNetworkCredential().Password)) { Fail 'PFX password cannot be blank.' }
+if ($PfxPassword.Length -eq 0) { Fail 'PFX password cannot be blank.' }
 
 Export-PfxCertificate -Cert "Cert:\LocalMachine\My\$($IssuedCert.Thumbprint)" -FilePath $PfxPath -Password $PfxPassword -ChainOption BuildChain | Out-Null
 
