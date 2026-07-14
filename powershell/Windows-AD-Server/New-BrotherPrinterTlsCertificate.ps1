@@ -18,7 +18,7 @@
 [CmdletBinding()]
 param(
     [string]$PrinterHost,
-    [string]$CAConfig = 'ISSUING-CA01\NOMMA Issuing CA 01',
+    [string]$CAConfig,
     [string]$Template = 'PrinterHTTPS',
     [string]$OutputDirectory = 'C:\Temp\BrotherTLS'
 )
@@ -56,6 +56,18 @@ $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIde
 if (-not $isAdmin) { Fail 'Run this script from an elevated PowerShell session.' }
 
 if (-not (Get-Command certreq.exe -ErrorAction SilentlyContinue)) { Fail 'certreq.exe was not found.' }
+
+if ([string]::IsNullOrWhiteSpace($CAConfig)) {
+    $certSvc = Get-Service -Name CertSvc -ErrorAction SilentlyContinue
+    if ($null -eq $certSvc) { Fail 'AD CS (CertSvc) is not installed. Run this script on the Issuing CA.' }
+    if ($certSvc.Status -ne 'Running') { Fail 'AD CS (CertSvc) is not running. Run this script on the active Issuing CA.' }
+
+    $activeCA = (Get-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Services\CertSvc\Configuration' -Name Active -ErrorAction Stop).Active
+    if ([string]::IsNullOrWhiteSpace($activeCA)) { Fail 'Could not determine the local active CA name.' }
+
+    $CAConfig = "$env:COMPUTERNAME\$activeCA"
+    Write-Host "Using local CA: $CAConfig" -ForegroundColor Cyan
+}
 
 $templateList = & certutil.exe -CATemplates 2>&1 | Out-String
 if ($LASTEXITCODE -ne 0 -or $templateList -notmatch [regex]::Escape($Template)) {
