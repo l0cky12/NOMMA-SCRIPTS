@@ -51,6 +51,16 @@ target answers on LDAP (TCP 389); this cannot be overridden.
 Runs secure channel, logon server, Kerberos, and `certutil` checks to show
 which DC and CA a server is using.
 
+### `Invoke-PrinterCertCADiagnostic.ps1`
+Read-only diagnostic to run on the Windows Server hosting an Issuing CA when a
+printer hostname or printer certificate path is failing. It checks DNS, ICMP and
+printer TCP ports, CertSvc, CA certificate validity, CRL/AIA reachability, the
+CA's DNS client settings, and routes. It changes nothing.
+
+```powershell
+.\Invoke-PrinterCertCADiagnostic.ps1 -PrinterHost 'b-4024.nomma.tech'
+```
+
 ### `Test-ADCSIssuingCAConnection.ps1`
 Safely tests DNS, native AD CS RPC/DCOM connectivity, current Windows identity
 CA access, and a read-only `certutil -ping` against a Windows AD CS Issuing CA.

@@ -16,6 +16,7 @@ There are no standalone `.ps1` files in this folder root.
 - `Cleanup-ADMetadata.ps1`
 - `Invoke-NOMMA-DC-CA-Diagnostics.ps1`
 - `Test-ADCSIssuingCAConnection.ps1` — read-only native AD CS Issuing CA connectivity and authentication validation for Windows endpoints
+- `Invoke-PrinterCertCADiagnostic.ps1` — read-only printer DNS, connectivity, and Issuing CA certificate-path diagnostics
 
 ### `Windows-Endpoint-Management/`
 - `rename-pc.ps1`
@@ -32,6 +33,11 @@ There are no standalone `.ps1` files in this folder root.
 ```powershell
 cd .\Windows-AD-Server
 .\Invoke-NOMMA-DC-CA-Diagnostics.ps1
+```
+
+```powershell
+cd .\Windows-AD-Server
+.\Invoke-PrinterCertCADiagnostic.ps1 -PrinterHost "b-4024.nomma.tech"
 ```
 
 ```powershell
