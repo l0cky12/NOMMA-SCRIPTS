@@ -39,8 +39,22 @@
     .\Invoke-PrinterCertCADiagnostic.ps1 -OutputPath "C:\Logs\ca-diag.log"
 .NOTES
     Author:  NOMMA IT (Elliot Alderson agent)
-    Version: 1.0
+    Version: 1.1
     Date:    2026-07-14
+
+    === 1.1 CHANGES ===
+    - Section 4: CA certificate discovery now uses CA name from -CAInfo
+      (Section 3); searches CA→Intermediate→Root in priority order;
+      verifies BasicConstraints; labels the store where the cert was
+      found.  No longer silently reports the wrong certificate.
+    - Section 6: route lookup replaced Get-NetRoute -DestinationPrefix
+      /32 (which threw when only a default route covered the target)
+      with Find-NetRoute -RemoteIPAddress for proper longest-prefix
+      matching, plus a manual fallback.  Successful ping / TCP plus a
+      default route is no longer falsely marked FAIL.
+    - Summary: counts are now array-wrapped with @() for reliable
+      enumeration even when a verdict returns a single object.
+      Every FAIL result is guaranteed to carry a NextAction.
 
     === HOW TO RUN ===
     1. Copy this script to the Windows Server hosting the Issuing CA.
@@ -317,6 +331,8 @@ else {
 }
 
 # 3b — CA name and type via certutil (works without ADCS module)
+# NOTE: $caName is consumed by Section 4 for certificate matching.
+$caName = ''
 try {
     $caInfo = & certutil -CAInfo 2>&1 | Out-String
     if ($LASTEXITCODE -eq 0) {
@@ -396,18 +412,50 @@ Write-Host "──────────────────────�
 $certSection = "4-CA-Cert"
 
 # 4a — Retrieve the CA certificate from the local store
+# Priority search: CA → Intermediate → Root.
+# Verify via BasicConstraints extension (OID 2.5.29.19).
+# If Section 3 gave us a CA name ($caName), prefer a cert whose
+# Subject contains that name.
 try {
-    $caCerts = Get-ChildItem -Path Cert:\LocalMachine\CA -ErrorAction Stop |
-        Where-Object { $_.Subject -like "*CN=*" }
+    $caCert      = $null
+    $caCertStore = ''
+    $storeOrder  = @(
+        @{ Path='Cert:\LocalMachine\CA';                                     Label='Issuing CA store' },
+        @{ Path='Cert:\LocalMachine\Intermediate Certification Authorities'; Label='Intermediate CA store' },
+        @{ Path='Cert:\LocalMachine\Root';                                   Label='Root store' }
+    )
 
-    if (-not $caCerts) {
-        $caCerts = Get-ChildItem -Path Cert:\LocalMachine\Root -ErrorAction SilentlyContinue |
-            Where-Object { $_.Subject -like "*CN=*" -and $_.Subject -match 'CA' }
+    foreach ($store in $storeOrder) {
+        $cands = Get-ChildItem -Path $store.Path -ErrorAction SilentlyContinue |
+            Where-Object {
+                # Must have BasicConstraints CA:TRUE extension
+                ($_.Extensions | Where-Object { $_.Oid.Value -eq '2.5.29.19' } |
+                 ForEach-Object { $_.Format($true) -match 'Subject Type\s*=\s*CA' })
+            }
+        if (-not $cands) { continue }
+
+        # If CA name is known from Section 3, prefer a matching cert
+        if ($caName -and $caName -ne 'Unknown') {
+            $matched = $cands | Where-Object { $_.Subject -like "*$caName*" }
+            if ($matched) { $cands = $matched }
+        }
+
+        $caCert      = $cands | Sort-Object NotAfter -Descending | Select-Object -First 1
+        $caCertStore = $store.Label
+        break
     }
 
-    if ($caCerts) {
-        # Pick the most-recently issued CA cert
-        $caCert = $caCerts | Sort-Object NotAfter -Descending | Select-Object -First 1
+    if ($caCert) {
+        # Emit an INFO line showing which store the cert was found in
+        if ($caCertStore -eq 'Root store') {
+            Add-Result -Section $certSection -Check "CA cert source" -Verdict WARN `
+                -Detail ("Found in {0} — this is NOT the Issuing CA certificate." -f $caCertStore) `
+                -NextAction "Check Cert:\LocalMachine\CA for the Issuing CA cert. A missing Intermediate CA cert may indicate a trust chain problem."
+        }
+        else {
+            Add-Result -Section $certSection -Check "CA cert source" -Verdict INFO `
+                -Detail ("Located in {0}" -f $caCertStore)
+        }
 
         $now  = Get-Date
         $days = ($caCert.NotAfter - $now).Days
@@ -495,14 +543,16 @@ try {
         }
     }
     else {
+        $storeList = ($storeOrder | ForEach-Object { $_.Path }) -join ', '
         Add-Result -Section $certSection -Check "CA certificate" -Verdict FAIL `
-            -Detail "No CA certificate found in Cert:\LocalMachine\CA or Root." `
-            -NextAction "Run certlm.msc and verify the CA certificate is present under Intermediate Certification Authorities."
+            -Detail ("No CA certificate found in any store ({0})." -f $storeList) `
+            -NextAction "Run certlm.msc and verify the Issuing CA certificate is present under Intermediate Certification Authorities. Import it if missing."
     }
 }
 catch {
     Add-Result -Section $certSection -Check "CA cert inspection" -Verdict FAIL `
-        -Detail ("Exception: {0}" -f $_.Exception.Message)
+        -Detail ("Exception: {0}" -f $_.Exception.Message) `
+        -NextAction "Check that the certificate stores are accessible. Run certlm.msc manually."
 }
 
 Write-Host ""
@@ -584,24 +634,95 @@ $routeSection = "6-Routes"
 # Only attempt if we have a resolved IP from Section 1
 $targetIp = ($aRecords | Select-Object -First 1).IPAddressToString
 if ($targetIp) {
+    # Cross-reference connectivity from Section 2 for smarter verdicts
+    $connPassCount = @($Results | Where-Object {
+        $_.Section -eq '2-Connectivity' -and $_.Verdict -eq 'PASS'
+    }).Count
+
+    # Helper: test whether a CIDR prefix contains an IP (PowerShell 5.1 safe)
+    function Test-IpInPrefix {
+        param([string]$Ip, [string]$Prefix)
+        $parts = $Prefix -split '/'
+        if ($parts.Count -ne 2) { return $false }
+        $netAddr = $parts[0]; $cidr = [int]$parts[1]
+        if ($cidr -eq 0) { return $true }  # default route contains everything
+
+        $ipBytes  = [System.Net.IPAddress]::Parse($Ip).GetAddressBytes()
+        $netBytes = [System.Net.IPAddress]::Parse($netAddr).GetAddressBytes()
+        if ($ipBytes.Count -ne 4 -or $netBytes.Count -ne 4) { return $false }
+
+        $fullBytes  = $cidr -shr 3
+        $remBits    = $cidr -band 7
+        for ($i = 0; $i -lt $fullBytes; $i++) {
+            if ($ipBytes[$i] -ne $netBytes[$i]) { return $false }
+        }
+        if ($remBits -gt 0 -and $fullBytes -lt 4) {
+            $mask = 0xFF -shl (8 - $remBits) -band 0xFF
+            if (($ipBytes[$fullBytes] -band $mask) -ne ($netBytes[$fullBytes] -band $mask)) { return $false }
+        }
+        return $true
+    }
+
     try {
-        $routes = Get-NetRoute -DestinationPrefix "$targetIp/32" -ErrorAction Stop
-        if ($routes) {
-            foreach ($route in $routes) {
-                Add-Result -Section $routeSection -Check "Route to $targetIp" -Verdict PASS `
-                    -Detail ("NextHop: {0}, Interface: {1} ({2}), Metric: {3}" -f `
-                        $route.NextHop, $route.InterfaceAlias, $route.InterfaceIndex, $route.RouteMetric)
-            }
+        # --- Primary: Find-NetRoute (longest-prefix matching) ---
+        $bestRoute = Find-NetRoute -RemoteIPAddress $targetIp -ErrorAction Stop |
+            Sort-Object RouteMetric | Select-Object -First 1
+        if ($bestRoute -and $bestRoute.NextHop) {
+            Add-Result -Section $routeSection -Check "Route to $targetIp" -Verdict PASS `
+                -Detail ("NextHop: {0}, Interface: {1} ({2}), Metric: {3}  [source: Find-NetRoute]" -f `
+                    $bestRoute.NextHop, $bestRoute.InterfaceAlias, $bestRoute.InterfaceIndex, $bestRoute.RouteMetric)
         }
         else {
-            Add-Result -Section $routeSection -Check "Route to $targetIp" -Verdict FAIL `
-                -Detail "No route found — the IP may be unreachable from this server." `
-                -NextAction "Check that the printer subnet route exists on this server and on upstream routers."
+            Add-Result -Section $routeSection -Check "Route to $targetIp" -Verdict WARN `
+                -Detail "Find-NetRoute returned no next-hop for $targetIp." `
+                -NextAction "Check the routing table manually: route print | findstr $targetIp"
         }
     }
     catch {
-        Add-Result -Section $routeSection -Check "Route to $targetIp" -Verdict FAIL `
-            -Detail ("Route lookup error: {0}" -f $_.Exception.Message)
+        # Find-NetRoute failed — fall back to manual longest-prefix match
+        $allRoutes = Get-NetRoute -ErrorAction SilentlyContinue |
+            Where-Object { $_.DestinationPrefix -match '^\d+\.\d+\.\d+\.\d+/\d+$' } |
+            Sort-Object { [int]($_.DestinationPrefix -split '/')[1] } -Descending
+
+        $bestManual = $null; $matchedLen = -1
+        foreach ($r in $allRoutes) {
+            if (Test-IpInPrefix -Ip $targetIp -Prefix $r.DestinationPrefix) {
+                $cLen = [int]($r.DestinationPrefix -split '/')[1]
+                if ($cLen -gt $matchedLen) { $bestManual = $r; $matchedLen = $cLen }
+            }
+        }
+
+        if ($bestManual) {
+            # If only the default route matched AND connectivity already passed, route is fine
+            if ($matchedLen -eq 0 -and $connPassCount -ge 1) {
+                Add-Result -Section $routeSection -Check "Route to $targetIp" -Verdict INFO `
+                    -Detail ("NextHop: {0}, Interface: {1} ({2}), Metric: {3} — reached via default route (connectivity already verified).  [source: manual prefix match]" -f `
+                        $bestManual.NextHop, $bestManual.InterfaceAlias, $bestManual.InterfaceIndex, $bestManual.RouteMetric)
+            }
+            elseif ($matchedLen -eq 0) {
+                Add-Result -Section $routeSection -Check "Route to $targetIp" -Verdict INFO `
+                    -Detail ("NextHop: {0}, Interface: {1} ({2}), Metric: {3} — reached via default route (no more-specific route).  [source: manual prefix match]" -f `
+                        $bestManual.NextHop, $bestManual.InterfaceAlias, $bestManual.InterfaceIndex, $bestManual.RouteMetric)
+            }
+            else {
+                Add-Result -Section $routeSection -Check "Route to $targetIp" -Verdict PASS `
+                    -Detail ("NextHop: {0}, Interface: {1} ({2}), Metric: {3}  [source: manual prefix match]" -f `
+                        $bestManual.NextHop, $bestManual.InterfaceAlias, $bestManual.InterfaceIndex, $bestManual.RouteMetric)
+            }
+        }
+        else {
+            # No route at all — true problem unless connectivity somehow passed
+            if ($connPassCount -ge 1) {
+                Add-Result -Section $routeSection -Check "Route to $targetIp" -Verdict WARN `
+                    -Detail "No matching route found, yet connectivity tests passed. Possible asymmetric routing or API limitation." `
+                    -NextAction "Run: tracert $targetIp  to confirm the path, and check the routing table with: route print"
+            }
+            else {
+                Add-Result -Section $routeSection -Check "Route to $targetIp" -Verdict FAIL `
+                    -Detail "No route found and connectivity failed — the IP is likely unreachable." `
+                    -NextAction "Verify the printer subnet route exists on this server and upstream routers. Check VLAN trunking between subnets."
+            }
+        }
     }
 }
 else {
@@ -630,11 +751,11 @@ Write-Host "============================================================" -Foreg
 Write-Host " DIAGNOSTIC SUMMARY"                                         -ForegroundColor Cyan
 Write-Host "============================================================" -ForegroundColor Cyan
 
-$total   = $Results.Count
-$pass    = ($Results | Where-Object Verdict -eq 'PASS').Count
-$warn    = ($Results | Where-Object Verdict -eq 'WARN').Count
-$fail    = ($Results | Where-Object Verdict -eq 'FAIL').Count
-$info    = ($Results | Where-Object Verdict -eq 'INFO').Count
+$total   = @($Results).Count
+$pass    = @($Results | Where-Object Verdict -eq 'PASS').Count
+$warn    = @($Results | Where-Object Verdict -eq 'WARN').Count
+$fail    = @($Results | Where-Object Verdict -eq 'FAIL').Count
+$info    = @($Results | Where-Object Verdict -eq 'INFO').Count
 
 Write-Host ("PASS : {0}" -f $pass) -ForegroundColor Green
 Write-Host ("WARN : {0}" -f $warn) -ForegroundColor Yellow
@@ -648,7 +769,7 @@ Write-Host "──────────────────────�
 Write-Host " PRIORITY ACTIONS (based on FAIL results)"                   -ForegroundColor DarkCyan
 Write-Host "────────────────────────────────────────────────────────────" -ForegroundColor DarkCyan
 
-$failedActions = $Results | Where-Object { $_.Verdict -eq 'FAIL' -and $_.NextAction }
+$failedActions = @($Results | Where-Object { $_.Verdict -eq 'FAIL' -and $_.NextAction })
 if ($failedActions) {
     $i = 1
     foreach ($action in $failedActions) {
@@ -665,7 +786,7 @@ Write-Host "──────────────────────�
 Write-Host " WARNINGS TO REVIEW"                                         -ForegroundColor DarkCyan
 Write-Host "────────────────────────────────────────────────────────────" -ForegroundColor DarkCyan
 
-$warnActions = $Results | Where-Object { $_.Verdict -eq 'WARN' -and $_.NextAction }
+$warnActions = @($Results | Where-Object { $_.Verdict -eq 'WARN' -and $_.NextAction })
 if ($warnActions) {
     $j = 1
     foreach ($action in $warnActions) {
