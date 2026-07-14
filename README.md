@@ -100,6 +100,7 @@ nomma-automation/
 - `Invoke-NOMMA-DC-CA-Diagnostics.ps1`
 - `Test-ADCSIssuingCAConnection.ps1`
 - `Invoke-PrinterCertCADiagnostic.ps1`
+- `New-BrotherPrinterTlsCertificate.ps1`
 
 `Cleanup-ADMetadata.ps1` removes stale AD metadata after a failed or incomplete domain controller demotion.
 `Invoke-NOMMA-DC-CA-Diagnostics.ps1` checks secure channel, logon server, Kerberos tickets, and certutil output for DC/CA troubleshooting.
@@ -108,6 +109,8 @@ DNS/RPC/current-identity validation from a Windows endpoint and explains the
 supported authentication requirements for Entra-only joined devices.
 `Invoke-PrinterCertCADiagnostic.ps1` performs read-only DNS, connectivity, CA,
 certificate-chain, and route checks for a printer hostname from the Issuing CA.
+`New-BrotherPrinterTlsCertificate.ps1` creates and validates a SAN-correct
+Brother printer HTTPS certificate PFX from the Issuing CA.
 
 ### Windows-Endpoint-Management/
 

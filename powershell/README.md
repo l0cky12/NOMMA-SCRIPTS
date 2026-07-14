@@ -17,6 +17,7 @@ There are no standalone `.ps1` files in this folder root.
 - `Invoke-NOMMA-DC-CA-Diagnostics.ps1`
 - `Test-ADCSIssuingCAConnection.ps1` — read-only native AD CS Issuing CA connectivity and authentication validation for Windows endpoints
 - `Invoke-PrinterCertCADiagnostic.ps1` — read-only printer DNS, connectivity, and Issuing CA certificate-path diagnostics
+- `New-BrotherPrinterTlsCertificate.ps1` — creates and validates a SAN-correct Brother HTTPS certificate PFX from the Issuing CA
 
 ### `Windows-Endpoint-Management/`
 - `rename-pc.ps1`
