@@ -20,6 +20,7 @@ There are no standalone `.ps1` files in this folder root.
 - `New-BrotherPrinterTlsCertificate.ps1` — creates and validates a SAN-correct Brother HTTPS certificate PFX from the Issuing CA
 
 ### `Windows-Endpoint-Management/`
+- `Export-NOMMAAutopilotDevice.ps1` - safely appends a local device's serial number, hardware hash, and approved group tag to a shared Intune Autopilot CSV
 - `rename-pc.ps1`
 
 ### `Windows-DHCP-Server/`
