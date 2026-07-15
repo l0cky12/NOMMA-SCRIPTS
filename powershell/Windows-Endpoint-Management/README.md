@@ -4,6 +4,17 @@ Scripts for endpoint renaming and other Intune / Autopilot-adjacent tasks.
 
 ## Scripts
 
+### `Set-NOMMAIntuneDeviceAssignment.ps1`
+Sets a Windows Intune device's primary user and moves its Entra device object into exactly one assigned/static NOMMA device group. It supports `-WhatIf`, refuses dynamic groups, and requires delegated Microsoft Graph sign-in.
+
+```powershell
+.\Set-NOMMAIntuneDeviceAssignment.ps1 `
+    -SerialNumber 'ABC123456' `
+    -PrimaryUserUPN 'teacher@nomma.net' `
+    -TargetGroup 'School Teacher Devices' `
+    -WhatIf
+```
+
 ### `Export-NOMMAAutopilotDevice.ps1`
 
 Runs locally in an elevated Windows PowerShell 5.1 session, reads the BIOS serial number and Autopilot hardware hash, and safely adds one row to a shared local or UNC CSV for Intune Autopilot import. It does not install modules or use cloud credentials. Full usage: [`Export-NOMMAAutopilotDevice-Help.md`](Export-NOMMAAutopilotDevice-Help.md).
