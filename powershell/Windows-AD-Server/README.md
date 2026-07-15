@@ -65,7 +65,8 @@ CA's DNS client settings, and routes. It changes nothing.
 Creates a Windows CSR with a DNS SAN, submits it to the published `PrinterHTTPS`
 template, validates SAN and Server Authentication, then exports a password-protected
 PFX for the Brother's **Import Certificate and Private Key** page. It does not
-change CA settings, templates, services, DNS, or printer settings.
+change CA settings, templates, services, DNS, or printer settings. Full usage:
+[`New-BrotherPrinterTlsCertificate-Help.md`](New-BrotherPrinterTlsCertificate-Help.md).
 
 ```powershell
 .\New-BrotherPrinterTlsCertificate.ps1

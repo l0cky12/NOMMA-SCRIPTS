@@ -1,4 +1,3 @@
-#Requires -Version 5.1
 <#
 .SYNOPSIS
     Creates a SAN-correct HTTPS certificate package for a Brother printer.
@@ -15,6 +14,7 @@
     The PFX contains a private key. Copy it directly to the printer's admin
     workstation, import it, then delete it securely after a successful test.
 #>
+#Requires -Version 5.1
 [CmdletBinding()]
 param(
     [string]$PrinterHost,
