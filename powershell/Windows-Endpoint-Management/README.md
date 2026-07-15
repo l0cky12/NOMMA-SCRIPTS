@@ -6,9 +6,15 @@ Scripts for endpoint renaming and other Intune / Autopilot-adjacent tasks.
 
 ### `Export-NOMMAAutopilotDevice.ps1`
 
-Runs locally in an elevated Windows PowerShell 5.1 session, reads the BIOS serial number and Autopilot hardware hash, and safely adds one row to a shared local or UNC CSV for Intune Autopilot import. It does not install modules or use cloud credentials.
+Runs locally in an elevated Windows PowerShell 5.1 session, reads the BIOS serial number and Autopilot hardware hash, and safely adds one row to a shared local or UNC CSV for Intune Autopilot import. It does not install modules or use cloud credentials. Full usage: [`Export-NOMMAAutopilotDevice-Help.md`](Export-NOMMAAutopilotDevice-Help.md).
 
 ```powershell
+# Creates or appends to .\NOMMA-Autopilot.csv without a group tag.
+.\Export-NOMMAAutopilotDevice.ps1
+```
+
+```powershell
+# Use a shared CSV and apply an Autopilot group tag.
 .\Export-NOMMAAutopilotDevice.ps1 `
     -CsvPath "\\fileserver\Deployment\Autopilot\NOMMA-Autopilot.csv" `
     -GroupTag "Cadet Devices"

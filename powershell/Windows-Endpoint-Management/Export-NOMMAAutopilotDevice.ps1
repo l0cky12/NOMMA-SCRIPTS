@@ -12,11 +12,13 @@
     when its serial number or hardware hash is already present.
 
 .PARAMETER CsvPath
-    Mandatory local or UNC path to the shared Autopilot import CSV.
+    Optional local or UNC path to the Autopilot import CSV. When omitted, the
+    script creates or appends to NOMMA-Autopilot.csv in the current directory.
 
 .PARAMETER GroupTag
-    Autopilot group tag assigned to this device. Allowed values are:
+    Optional Autopilot group tag assigned to this device. Allowed values are:
     Cadet Devices, Teacher Devices, IT Devices, School Administrator Devices.
+    When omitted, the Group Tag field is blank.
 
 .PARAMETER LockTimeoutSeconds
     Maximum time to wait for another writer to release the CSV lock.
@@ -53,17 +55,18 @@
 
 [CmdletBinding()]
 param(
-    [Parameter(Mandatory = $true, Position = 0)]
+    [Parameter(Position = 0)]
     [ValidateNotNullOrEmpty()]
-    [string]$CsvPath,
+    [string]$CsvPath = (Join-Path -Path (Get-Location).Path -ChildPath 'NOMMA-Autopilot.csv'),
 
-    [Parameter(Mandatory = $true, Position = 1)]
+    [Parameter(Position = 1)]
     [ValidateSet(
         'Cadet Devices',
         'Teacher Devices',
         'IT Devices',
         'School Administrator Devices'
     )]
+    [AllowNull()]
     [string]$GroupTag,
 
     [ValidateRange(1, 3600)]
