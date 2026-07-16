@@ -15,6 +15,9 @@ Before deployment, update `$ZabbixServer` at the top of the script if the server
 ### `Test-ZabbixHyperV-Action1.ps1`
 Read-only Action1 validation for the NOMMA Hyper-V Zabbix collector. Run it on actual Hyper-V hosts after deploying `Get-ZabbixHyperV.ps1` and `userparameter_hyperv.conf`. It validates the Agent 2 service, Hyper-V module, VMMS service, direct collector JSON, `hyperv.collect` UserParameter, active-check TCP reachability, and recent agent log entries.
 
+### `Repair-ZabbixHyperVCollector-Action1.ps1`
+Action1 remediation for actual Hyper-V hosts. It downloads the current public Hyper-V collector and UserParameter file, increases the Agent 2 timeout to 30 seconds without adding a UTF-8 BOM, restarts Agent 2, and prints direct and Agent 2 collector output. It creates a timestamped backup of `zabbix_agent2.conf` before changing the timeout.
+
 ### Usage
 
 ```powershell
