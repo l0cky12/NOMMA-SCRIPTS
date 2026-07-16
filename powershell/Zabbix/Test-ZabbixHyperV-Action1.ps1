@@ -64,18 +64,26 @@ else {
 }
 Test-Result -Name 'Hyper-V VMMS service' -Passed ($vmms -and $vmms.Status -eq 'Running') -Detail $vmmsDetail
 
-# Run the collector directly and validate its JSON contract.
+# Run the collector directly and validate its JSON contract. Preserve its full
+# failure document in Action1 output so a failed check is diagnosable remotely.
 if (Test-Path -LiteralPath $collectorPath) {
     try {
-        $collectorOutput = & powershell.exe -NoLogo -NoProfile -NonInteractive -File $collectorPath
-        $collectorJson = $collectorOutput | ConvertFrom-Json -ErrorAction Stop
+        $collectorOutput = & powershell.exe -NoLogo -NoProfile -NonInteractive -File $collectorPath 2>&1
+        $collectorExitCode = $LASTEXITCODE
+        $collectorText = ($collectorOutput | Out-String).Trim()
+        $collectorJson = $collectorText | ConvertFrom-Json -ErrorAction Stop
 
-        $isHealthy = ($collectorJson.collection.ok -eq 1)
-        $detail = "collection.ok=$($collectorJson.collection.ok); VMs=$($collectorJson.host.vmTotal); replica-primary=$($collectorJson.host.replicaPrimary); replica=$($collectorJson.host.replicaReplica)"
+        $isHealthy = ($collectorExitCode -eq 0 -and $collectorJson.collection.ok -eq 1)
+        $detail = "exit=$collectorExitCode; collection.ok=$($collectorJson.collection.ok); VMs=$($collectorJson.host.vmTotal); replica-primary=$($collectorJson.host.replicaPrimary); replica=$($collectorJson.host.replicaReplica)"
         if (-not $isHealthy -and $collectorJson.collection.error) {
             $detail += "; error=$($collectorJson.collection.error)"
         }
         Test-Result -Name 'Direct Hyper-V collector' -Passed $isHealthy -Detail $detail
+
+        if (-not $isHealthy) {
+            Write-Output "`n=== Direct collector failure document ==="
+            Write-Output $collectorText
+        }
     }
     catch {
         Test-Result -Name 'Direct Hyper-V collector' -Passed $false -Detail $_.Exception.Message
@@ -128,7 +136,9 @@ if (Test-Path -LiteralPath $logPath) {
 }
 
 if ($failures.Count -gt 0) {
-    Write-Error "Hyper-V monitoring test failed: $($failures -join '; ')"
+    Write-Output "`n=== Hyper-V monitoring test failure summary ==="
+    $failures | ForEach-Object { Write-Output "FAIL: $_" }
+    Write-Output 'Review the Direct collector failure document and Agent 2 log above for the exact cause.'
     exit 1
 }
 
