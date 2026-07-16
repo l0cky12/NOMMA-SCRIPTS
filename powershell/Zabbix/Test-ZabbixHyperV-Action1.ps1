@@ -37,14 +37,32 @@ Test-Result -Name 'Hyper-V UserParameter file' -Passed (Test-Path -LiteralPath $
 
 # Agent service
 $agentService = Get-Service -Name 'Zabbix Agent 2' -ErrorAction SilentlyContinue
-Test-Result -Name 'Zabbix Agent 2 service' -Passed ($agentService -and $agentService.Status -eq 'Running') -Detail (if ($agentService) { $agentService.Status } else { 'Service not found' })
+if ($agentService) {
+    $agentServiceDetail = [string]$agentService.Status
+}
+else {
+    $agentServiceDetail = 'Service not found'
+}
+Test-Result -Name 'Zabbix Agent 2 service' -Passed ($agentService -and $agentService.Status -eq 'Running') -Detail $agentServiceDetail
 
 # Local Hyper-V prerequisites
 $hypervModule = Get-Module -ListAvailable -Name Hyper-V | Select-Object -First 1
-Test-Result -Name 'Hyper-V PowerShell module' -Passed ($null -ne $hypervModule) -Detail (if ($hypervModule) { $hypervModule.Path } else { 'Module not found' })
+if ($hypervModule) {
+    $hypervModuleDetail = $hypervModule.Path
+}
+else {
+    $hypervModuleDetail = 'Module not found'
+}
+Test-Result -Name 'Hyper-V PowerShell module' -Passed ($null -ne $hypervModule) -Detail $hypervModuleDetail
 
 $vmms = Get-Service -Name vmms -ErrorAction SilentlyContinue
-Test-Result -Name 'Hyper-V VMMS service' -Passed ($vmms -and $vmms.Status -eq 'Running') -Detail (if ($vmms) { $vmms.Status } else { 'Service not found' })
+if ($vmms) {
+    $vmmsDetail = [string]$vmms.Status
+}
+else {
+    $vmmsDetail = 'Service not found'
+}
+Test-Result -Name 'Hyper-V VMMS service' -Passed ($vmms -and $vmms.Status -eq 'Running') -Detail $vmmsDetail
 
 # Run the collector directly and validate its JSON contract.
 if (Test-Path -LiteralPath $collectorPath) {
