@@ -96,9 +96,24 @@ if ((Test-Path -LiteralPath $agentExe) -and (Test-Path -LiteralPath $agentConfig
         $agentTest = & $agentExe -c $agentConfig -t hyperv.collect 2>&1
         $agentTestText = $agentTest | Out-String
         $supported = ($agentTestText -notmatch 'ZBX_NOTSUPPORTED|Unknown metric|not supported') -and ($agentTestText -match 'hyperv\.collect')
-        $preview = ($agentTestText -replace '[\r\n]+', ' ').Trim()
-        if ($preview.Length -gt 500) { $preview = $preview.Substring(0, 500) + '...' }
-        Test-Result -Name 'Agent 2 UserParameter: hyperv.collect' -Passed $supported -Detail $preview
+        $agentPayloadMatch = [regex]::Match($agentTestText, '(?s)\[s\|(.*)\]\s*$')
+        $agentHealthy = $false
+        $agentDetail = ($agentTestText -replace '[\r\n]+', ' ').Trim()
+
+        if ($supported -and $agentPayloadMatch.Success) {
+            $agentJson = $agentPayloadMatch.Groups[1].Value | ConvertFrom-Json -ErrorAction Stop
+            $agentHealthy = ($agentJson.collection.ok -eq 1)
+            $agentDetail = "collection.ok=$($agentJson.collection.ok); VMs=$($agentJson.host.vmTotal); replica-primary=$($agentJson.host.replicaPrimary); replica=$($agentJson.host.replicaReplica)"
+            if (-not $agentHealthy -and $agentJson.collection.error) {
+                $agentDetail += "; error=$($agentJson.collection.error)"
+            }
+        }
+        elseif ($supported) {
+            $agentDetail = 'Agent returned a supported item but its JSON payload could not be extracted.'
+        }
+
+        if ($agentDetail.Length -gt 500) { $agentDetail = $agentDetail.Substring(0, 500) + '...' }
+        Test-Result -Name 'Agent 2 UserParameter: hyperv.collect' -Passed $agentHealthy -Detail $agentDetail
     }
     catch {
         Test-Result -Name 'Agent 2 UserParameter: hyperv.collect' -Passed $false -Detail $_.Exception.Message
