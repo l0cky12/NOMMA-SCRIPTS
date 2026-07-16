@@ -38,3 +38,18 @@ If GAM is installed somewhere custom, or you want a different CSV file:
 ```bash
 GAM=/path/to/gam OUTPUT_CSV=/path/to/results.csv ./find-chromebook-by-asset-tag.sh
 ```
+
+## sync-snipeit-intune-primary-users.sh
+
+Dry-run-first synchronization of hardware assigned to users in Snipe-IT with
+the primary-user relationship on serial-matched Windows Intune devices. The
+source users are transitive members of a configured Entra group.
+
+```bash
+# After loading the protected environment file:
+./sync-snipeit-intune-primary-users.sh --user user@nomma.net
+./sync-snipeit-intune-primary-users.sh --user user@nomma.net --apply
+```
+
+See [sync-snipeit-intune-primary-users.md](sync-snipeit-intune-primary-users.md)
+for app permissions, setup, bulk safeguards, reports, and rollback guidance.

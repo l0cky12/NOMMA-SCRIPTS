@@ -59,3 +59,8 @@ python/chromeos-snipeit-sync/service-account*.json
 python/chromeos-snipeit-sync/reports/
 python/chromeos-snipeit-sync/model-map.json
 python/chromeos-snipeit-sync/venv/
+
+# ── Snipe-IT → Intune primary-user sync ──────────────────────────────
+# Filled-in environment files and generated audit reports
+bash/sync-snipeit-intune-primary-users.env
+bash/reports/
