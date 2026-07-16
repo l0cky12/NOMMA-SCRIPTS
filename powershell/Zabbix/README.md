@@ -12,6 +12,9 @@ Action1 deployment script for an already-installed Zabbix Agent 2. It sets the Z
 
 Before deployment, update `$ZabbixServer` at the top of the script if the server or proxy IP changes.
 
+### `Test-ZabbixHyperV-Action1.ps1`
+Read-only Action1 validation for the NOMMA Hyper-V Zabbix collector. Run it on actual Hyper-V hosts after deploying `Get-ZabbixHyperV.ps1` and `userparameter_hyperv.conf`. It validates the Agent 2 service, Hyper-V module, VMMS service, direct collector JSON, `hyperv.collect` UserParameter, active-check TCP reachability, and recent agent log entries.
+
 ### Usage
 
 ```powershell
