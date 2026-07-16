@@ -14,9 +14,9 @@ $collectorPath = Join-Path $scriptsDir 'Get-ZabbixHyperV.ps1'
 $userParameterPath = Join-Path $pluginsDir 'userparameter_hyperv.conf'
 
 # Pinned to a reviewed collector commit. The hashes below reject unexpected content.
-$collectorUrl = 'https://raw.githubusercontent.com/l0cky12/zabbix-hyperv-monitoring/2c3bb82/scripts/Get-ZabbixHyperV.ps1'
-$userParameterUrl = 'https://raw.githubusercontent.com/l0cky12/zabbix-hyperv-monitoring/2c3bb82/agent/userparameter_hyperv.conf'
-$collectorSha256 = '87237889F3A4D529BA031681E519D73F207990EE803F561BC3BE7F5AAF49C75E'
+$collectorUrl = 'https://raw.githubusercontent.com/l0cky12/zabbix-hyperv-monitoring/036deaaf9bae8963f9690677defb901327541226/scripts/Get-ZabbixHyperV.ps1'
+$userParameterUrl = 'https://raw.githubusercontent.com/l0cky12/zabbix-hyperv-monitoring/036deaaf9bae8963f9690677defb901327541226/agent/userparameter_hyperv.conf'
+$collectorSha256 = '7D52AA19A70C1166CDFFB536CBE2CDE026B17C3C428BEB32EA715A0DDD9372B0'
 $userParameterSha256 = 'B6BB11D5D445831AD6CC7C552D6B497F29998629C8687BF842F9B90FB763A1E0'
 
 if (-not (Test-Path -LiteralPath $agentExe)) { throw "Zabbix Agent 2 was not found: $agentExe" }
