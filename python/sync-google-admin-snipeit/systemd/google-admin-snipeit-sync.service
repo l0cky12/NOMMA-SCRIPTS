@@ -1,0 +1,20 @@
+[Unit]
+Description=Google Admin to Snipe-IT Chromebook inventory sync
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=liam
+Group=liam
+WorkingDirectory=/home/liam/NOMMA-SCRIPTS/python/sync-google-admin-snipeit
+ExecStart=/home/liam/NOMMA-SCRIPTS/python/sync-google-admin-snipeit/.venv/bin/python /home/liam/NOMMA-SCRIPTS/python/sync-google-admin-snipeit/sync_google_admin_snipeit.py --apply
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/liam/NOMMA-SCRIPTS/python/sync-google-admin-snipeit/logs
+
+[Install]
+WantedBy=multi-user.target

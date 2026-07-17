@@ -1,0 +1,11 @@
+[Unit]
+Description=Run Google Admin to Snipe-IT inventory sync daily
+
+[Timer]
+OnCalendar=*-*-* 06:15:00 America/Chicago
+Persistent=true
+RandomizedDelaySec=5m
+Unit=google-admin-snipeit-sync.service
+
+[Install]
+WantedBy=timers.target

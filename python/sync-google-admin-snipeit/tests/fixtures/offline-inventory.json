@@ -1,0 +1,18 @@
+{
+  "defaults": {"category_id": 10, "status_id": 20, "company_id": 30},
+  "snipe_models": [
+    {"id": 40, "name": "__FIXTURE_SNIPEIT_MODEL__", "category": {"id": 10, "name": "Chromebook"}}
+  ],
+  "snipe_assets": [
+    {"id": 100, "serial": "UNCHANGED-1", "asset_tag": "TAG-1", "model": {"id": 40}},
+    {"id": 101, "serial": "UPDATE-1", "asset_tag": "OLD-TAG", "model": {"id": 99}}
+  ],
+  "google_devices": [
+    {"deviceId": "g1", "serialNumber": "CREATE-1", "annotatedAssetId": "TAG-CREATE", "model": "__FIXTURE_GOOGLE_MODEL__"},
+    {"deviceId": "g2", "serialNumber": "UPDATE-1", "annotatedAssetId": "TAG-UPDATE", "model": "__FIXTURE_GOOGLE_MODEL__"},
+    {"deviceId": "g3", "serialNumber": "UNCHANGED-1", "annotatedAssetId": "TAG-1", "model": "__FIXTURE_GOOGLE_MODEL__"},
+    {"deviceId": "g4", "serialNumber": "", "annotatedAssetId": "TAG-NOSERIAL", "model": "__FIXTURE_GOOGLE_MODEL__"},
+    {"deviceId": "g5", "serialNumber": "NO-TAG-1", "annotatedAssetId": "", "model": "__FIXTURE_GOOGLE_MODEL__"},
+    {"deviceId": "g6", "serialNumber": "UNMAPPED-1", "annotatedAssetId": "TAG-UNMAPPED", "model": "UNMAPPED FIXTURE MODEL"}
+  ]
+}
