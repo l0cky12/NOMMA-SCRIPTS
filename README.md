@@ -117,7 +117,7 @@ Brother printer HTTPS certificate PFX from the Issuing CA.
 - `New-IntuneWinPackage.ps1`
 - `rename-pc.ps1`
 
-`New-IntuneWinPackage.ps1` downloads Microsoft's Win32 Content Prep Tool and packages one `.msi`, `.exe`, or `.ps1` as an `.intunewin` file. `rename-pc.ps1` renames computers during Autopilot enrollment based on serial number and asset tag from a CSV file.
+`New-IntuneWinPackage.ps1` downloads Microsoft's Win32 Content Prep Tool from GitHub and packages each supplied `.msi`, `.exe`, or `.ps1` as an `.intunewin`, printing every output path. `rename-pc.ps1` renames computers during Autopilot enrollment based on serial number and asset tag from a CSV file.
 
 **Naming convention:** `L5-SERIAL(7)-ASSETTAG(4)`
 

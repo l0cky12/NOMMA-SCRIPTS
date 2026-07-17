@@ -21,7 +21,7 @@ There are no standalone `.ps1` files in this folder root.
 
 ### `Windows-Endpoint-Management/`
 - `Export-NOMMAAutopilotDevice.ps1` - safely appends a local device's serial number, hardware hash, and approved group tag to a shared Intune Autopilot CSV
-- `New-IntuneWinPackage.ps1` — downloads Microsoft’s packaging tool and creates an `.intunewin` from one `.msi`, `.exe`, or `.ps1`
+- `New-IntuneWinPackage.ps1` — downloads Microsoft’s packaging tool from GitHub and creates an `.intunewin` for each supplied `.msi`, `.exe`, or `.ps1`
 - `rename-pc.ps1`
 
 ### `Windows-DHCP-Server/`
