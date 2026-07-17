@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 # ============================================================================
-# chromeos_snipeit_sync.py — add-only sync of Google Admin ChromeOS devices
+# chromeos_snipeit_sync.py — one-way sync of Google Admin ChromeOS devices
 #                            into Snipe-IT
 #
 # Pulls ACTIVE ChromeOS devices from the Google Admin SDK Directory API and
-# creates the ones that don't exist in Snipe-IT yet. It NEVER updates,
-# overwrites, or changes the status of an existing Snipe-IT asset — there is
-# no update/PATCH code path in this script at all.
+# creates missing assets and reconciles the asset tag and model of existing
+# assets matched by serial number. It never deletes, checks in/out, or changes
+# the serial number, status, location, or assignment of an existing asset.
 #
 # Field mapping:
 #   Google serialNumber     -> Snipe-IT serial
@@ -14,8 +14,8 @@
 #   Google model            -> existing Snipe-IT model (case-insensitive
 #                              exact name match, or the model-map file)
 #
-# A device is SKIPPED when its serial number OR asset tag already exists in
-# Snipe-IT (or duplicates an earlier device in the same Google export).
+# Existing assets are matched by serial number only. A Google asset tag that
+# belongs to a *different* Snipe-IT asset is blocked rather than overwritten.
 # New assets are created with status "Ready to Deploy" and no financial
 # fields. Re-running the script is idempotent.
 #
@@ -34,6 +34,7 @@
 #   GOOGLE_ADMIN_SUBJECT  Workspace admin email the service account impersonates
 #   SNIPEIT_URL           e.g. https://snipeit.nomma.lan
 #   SNIPEIT_API_TOKEN     Snipe-IT API bearer token
+#   SNIPEIT_COMPANY_NAME  Company for newly-created assets
 # Required with --non-interactive (problem email):
 #   SMTP_HOST, SMTP_USERNAME, SMTP_PASSWORD, SMTP_FROM, SMTP_TO
 # Optional env vars:
@@ -123,6 +124,7 @@ class Config:
     snipeit_url: str
     snipeit_api_token: str
     snipeit_status_label: str
+    snipeit_company_name: str
     snipeit_verify_tls: bool
     smtp_host: str
     smtp_port: int
@@ -150,6 +152,7 @@ class Config:
         google_admin_subject = required("GOOGLE_ADMIN_SUBJECT")
         snipeit_url = required("SNIPEIT_URL").rstrip("/")
         snipeit_api_token = required("SNIPEIT_API_TOKEN")
+        snipeit_company_name = required("SNIPEIT_COMPANY_NAME")
 
         # A cron job that can't report problems is a silent failure mode,
         # so SMTP config is mandatory for unattended runs (dry-run excepted).
@@ -187,6 +190,7 @@ class Config:
             snipeit_url=snipeit_url,
             snipeit_api_token=snipeit_api_token,
             snipeit_status_label=os.environ.get("SNIPEIT_STATUS_LABEL", "Ready to Deploy").strip(),
+            snipeit_company_name=snipeit_company_name,
             snipeit_verify_tls=verify_raw in ("true", "1", "yes"),
             smtp_host=smtp["SMTP_HOST"],
             smtp_port=smtp_port,
@@ -389,20 +393,25 @@ class SnipeIT:
             if not rows or offset >= int(payload.get("total") or 0):
                 break
 
-    def fetch_hardware_identifiers(self):
-        """Every existing serial and asset tag, normalized — the sole
-        duplicate-prevention authority for the whole run."""
-        serials, tags = set(), set()
+    def fetch_hardware(self):
+        """Index assets by serial and asset tag.
+
+        Serial is the sole match key. Duplicate serials are kept as lists so
+        the caller can block ambiguity rather than arbitrarily choosing one.
+        """
+        by_serial, by_tag = {}, {}
         count = 0
         for row in self.iter_rows("/hardware"):
             count += 1
-            if norm(row.get("serial")):
-                serials.add(norm(row.get("serial")))
-            if norm(row.get("asset_tag")):
-                tags.add(norm(row.get("asset_tag")))
-        log.info("Snipe-IT: %d existing asset(s) (%d serials, %d tags)",
-                 count, len(serials), len(tags))
-        return serials, tags
+            serial, tag = norm(row.get("serial")), norm(row.get("asset_tag"))
+            if serial:
+                by_serial.setdefault(serial, []).append(row)
+            if tag:
+                by_tag.setdefault(tag, []).append(row)
+        duplicate_serials = sum(1 for rows in by_serial.values() if len(rows) > 1)
+        log.info("Snipe-IT: %d asset(s), %d serials, %d tags, %d duplicate serial(s)",
+                 count, len(by_serial), len(by_tag), duplicate_serials)
+        return by_serial, by_tag
 
     def fetch_models(self):
         """Case-insensitive model-name -> {id, name}. First name wins on a
@@ -864,7 +873,7 @@ def run_sync(cfg):
         log.info("--limit %d: processing first %d device(s)", cfg.limit, len(devices))
 
     snipe = SnipeIT(cfg.snipeit_url, cfg.snipeit_api_token, cfg.snipeit_verify_tls)
-    snipe_serials, snipe_tags = snipe.fetch_hardware_identifiers()
+    snipe_serials, snipe_tags = snipe.fetch_hardware()
     models = snipe.fetch_models()
     status_id = snipe.fetch_status_label_id(cfg.snipeit_status_label)
     if status_id is None:
