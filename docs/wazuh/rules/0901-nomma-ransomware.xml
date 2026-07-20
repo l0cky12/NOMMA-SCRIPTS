@@ -1,0 +1,110 @@
+<group name="nomma,ransomware,">
+  <rule id="100100" level="12">
+    <if_sid>100000</if_sid>
+    <field name="win.eventdata.image" type="pcre2">(?i)vssadmin\.exe$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)delete\s+shadows</field>
+    <description>RANSOMWARE: vssadmin.exe shadow copy deletion (T1490.001)</description>
+    <group>ransomware_shadow_delete,vssadmin,T1490,T1490.001,attack.impact,</group>
+    <mitre><id>T1490.001</id></mitre>
+  </rule>
+
+  <rule id="100101" level="12">
+    <if_sid>100000</if_sid>
+    <field name="win.eventdata.image" type="pcre2">(?i)wmic\.exe$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)shadowcopy\s+delete</field>
+    <description>RANSOMWARE: wmic shadowcopy deletion (T1490.001)</description>
+    <group>ransomware_shadow_delete,wmic,T1490,T1490.001,attack.impact,</group>
+    <mitre><id>T1490.001</id></mitre>
+  </rule>
+
+  <rule id="100102" level="12">
+    <if_sid>100000</if_sid>
+    <field name="win.eventdata.image" type="pcre2">(?i)(?:powershell|pwsh)\.exe$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)win32_shadowcopy</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)(?:delete|remove-item)</field>
+    <description>RANSOMWARE: PowerShell shadow copy deletion (T1490.001)</description>
+    <group>ransomware_shadow_delete,powershell,T1490,T1490.001,attack.impact,</group>
+    <mitre><id>T1490.001</id></mitre>
+  </rule>
+
+  <rule id="100103" level="10">
+    <if_sid>100000</if_sid>
+    <field name="win.eventdata.image" type="pcre2">(?i)bcdedit\.exe$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)(?:recoveryenabled\s+no|bootstatuspolicy\s+ignoreallfailures)</field>
+    <description>RANSOMWARE: bcdedit disabling recovery (T1490)</description>
+    <group>ransomware_recovery,bcdedit,T1490,attack.impact,</group>
+    <mitre><id>T1490</id></mitre>
+  </rule>
+
+  <rule id="100104" level="12">
+    <if_sid>100000</if_sid>
+    <field name="win.eventdata.image" type="pcre2">(?i)wbadmin\.exe$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)\bdelete\b</field>
+    <description>RANSOMWARE: wbadmin backup deletion (T1490)</description>
+    <group>ransomware_backup_delete,wbadmin,T1490,attack.impact,</group>
+    <mitre><id>T1490</id></mitre>
+  </rule>
+
+  <rule id="100105" level="12">
+    <if_sid>100000</if_sid>
+    <field name="win.eventdata.image" type="pcre2">(?i)diskshadow\.exe$</field>
+    <description>RANSOMWARE: diskshadow.exe execution (T1490)</description>
+    <group>ransomware_diskshadow,diskshadow,T1490,attack.impact,</group>
+    <mitre><id>T1490</id></mitre>
+  </rule>
+
+  <rule id="100110" level="12">
+    <if_sid>100002</if_sid>
+    <field name="win.eventdata.targetFilename" type="pcre2">(?i)(?:readme\.txt|how_to_decrypt\.txt|your_files\.txt|decrypt_instructions\.html|!restore!\.txt|!readme!\.txt|recover_files\.txt|ransom\.html|!help!\.txt)$</field>
+    <description>RANSOMWARE: ransom note file creation (T1486)</description>
+    <group>ransomware_note,T1486,attack.impact,</group>
+    <mitre><id>T1486</id></mitre>
+  </rule>
+
+  <rule id="100111" level="11">
+    <if_sid>100002</if_sid>
+    <field name="win.eventdata.targetFilename" type="pcre2">(?i)(?:users|programdata|appdata|temp)</field>
+    <field name="win.eventdata.targetFilename" type="pcre2">(?i)(?:readme\.txt|how_to_decrypt\.txt|your_files\.txt|decrypt_instructions\.html|recover_files\.txt|ransom\.html)$</field>
+    <description>RANSOMWARE: ransom-note filename in a user-writable path (T1486)</description>
+    <group>ransomware_note_pattern,T1486,attack.impact,</group>
+    <mitre><id>T1486</id></mitre>
+  </rule>
+
+  <rule id="100120" level="5">
+    <if_group>sysmon_event14</if_group>
+    <field name="win.eventdata.targetFilename" type="pcre2">(?i)\.(?:encrypted|locky|crypto|ransom|enc|locked|crypt|crypted|encrypt|wannacry|wcry)$</field>
+    <description>RANSOMWARE: file renamed to a suspicious extension (T1486)</description>
+    <group>ransomware_encrypt_ext,T1486,attack.impact,</group>
+    <mitre><id>T1486</id></mitre>
+  </rule>
+
+  <rule id="100130" level="11">
+    <if_sid>100000</if_sid>
+    <field name="win.eventdata.image" type="pcre2">(?i)(?:users|programdata|appdata|temp)</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)(?:cipher|gpg|openssl|age|7z)\.exe$</field>
+    <description>RANSOMWARE: encryption tool executed from a user-writable path (T1486)</description>
+    <group>ransomware_enc_tool,T1486,attack.impact,</group>
+    <mitre><id>T1486</id></mitre>
+  </rule>
+
+  <rule id="100180" level="15" frequency="2" timeframe="120">
+    <if_matched_sid>100100</if_matched_sid>
+    <description>RANSOMWARE: repeated vssadmin shadow copy deletion attempts (T1490.001)</description>
+    <group>ransomware_critical,T1490,T1490.001,attack.impact,</group>
+    <mitre><id>T1490.001</id></mitre>
+  </rule>
+
+  <rule id="100181" level="16" frequency="2" timeframe="300">
+    <if_matched_sid>100110</if_matched_sid>
+    <description>RANSOMWARE: repeated ransom-note creation on a host (T1486)</description>
+    <group>ransomware_critical_converged,T1486,attack.impact,</group>
+    <mitre><id>T1486</id></mitre>
+  </rule>
+
+  <rule id="100182" level="14" frequency="50" timeframe="60">
+    <if_matched_sid>100120</if_matched_sid>
+    <description>RANSOMWARE: mass suspicious file extension changes (T1486)</description>
+    <group>ransomware_mass_rename,T1486,attack.impact,</group>
+    <mitre><id>T1486</id></mitre>
+  </rule>
+</group>
