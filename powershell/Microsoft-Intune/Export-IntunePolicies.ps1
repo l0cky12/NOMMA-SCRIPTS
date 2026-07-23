@@ -3,9 +3,11 @@
     Export Intune Configuration Profiles and Compliance Policies for review.
 
 .DESCRIPTION
-    Connects to Microsoft Graph (beta profile), exports all device configuration
-    policies (with full settings) and compliance policies to JSON files on the
-    desktop. Designed for K-12 IT admins to share policy exports for review/planning.
+    Connects to Microsoft Graph, exports all device configuration policies
+    (with full settings) and compliance policies to JSON files on the desktop.
+    Uses the Graph REST API directly via Invoke-MgGraphRequest — no beta
+    cmdlets required. Designed for K-12 IT admins to share policy exports
+    for review/planning.
 
 .PARAMETER ExportPath
     Directory to export files to. Defaults to the user's Desktop.
@@ -19,30 +21,32 @@
 
 .PARAMETER DisableWAM
     Switch to disable WAM (Web Account Manager) login. Recommended for most
-    environments. Enabled by default.
+    environments.
 
 .EXAMPLE
-    .\Export-IntunePolicies.ps1
+    .\Export-IntunePolicies.ps1 -DisableWAM
 
-    Exports to Desktop with default settings.
-
-.EXAMPLE
-    .\Export-IntunePolicies.ps1 -ExportPath "C:\Exports" -Clipboard
-
-    Exports to C:\Exports and copies config profiles to clipboard.
+    Exports to Desktop, disables WAM login.
 
 .EXAMPLE
-    .\Export-IntunePolicies.ps1 -ClientId "12345678-1234-1234-1234-123456789abc"
+    .\Export-IntunePolicies.ps1 -DisableWAM -Clipboard
+
+    Exports to Desktop and copies config profiles to clipboard.
+
+.EXAMPLE
+    .\Export-IntunePolicies.ps1 -DisableWAM -ClientId "12345678-1234-1234-1234-123456789abc"
 
     Uses a custom Azure AD app for authentication.
 
 .NOTES
     Author: Liam Decareaux
     Repo:   https://github.com/l0cky12/NOMMA-SCRIPTS
-    Requires: Microsoft.Graph.Beta module, Global Admin or Intune Admin rights
+    Requires: Microsoft.Graph.Authentication module (auto-installed)
+    Graph API: /beta/deviceManagement/configurationPolicies
+               /beta/deviceManagement/deviceCompliancePolicies
     Changelog:
-      2026-07-23 - Fixed WAM disable, added custom ClientId support, moved to
-                   Microsoft.Graph.Beta for config policy cmdlets
+      2026-07-23 - Rewrote to use Invoke-MgGraphRequest (REST API) instead of
+                   beta cmdlets for broader compatibility
 #>
 
 [CmdletBinding()]
@@ -70,12 +74,8 @@ function Write-Banner {
 }
 
 function Install-ModuleIfMissing {
-    param(
-        [string]$ModuleName,
-        [string]$MinimumVersion = "2.0.0"
-    )
-    $installed = Get-Module -ListAvailable -Name $ModuleName
-    if (-not $installed) {
+    param([string]$ModuleName)
+    if (-not (Get-Module -ListAvailable -Name $ModuleName)) {
         Write-Host "[*] Installing module: $ModuleName ..." -ForegroundColor Yellow
         Install-Module $ModuleName -Scope CurrentUser -Force -AllowClobber
     } else {
@@ -83,34 +83,37 @@ function Install-ModuleIfMissing {
     }
 }
 
-function Import-GraphModule {
-    Write-Host "[*] Loading Microsoft.Graph.Beta (DeviceManagement) ..." -ForegroundColor Cyan
-    try {
-        Import-Module Microsoft.Graph.Beta.DeviceManagement -ErrorAction Stop
-        Import-Module Microsoft.Graph.Beta.DeviceManagement.Enrollment -ErrorAction SilentlyContinue
-        Write-Host "[✓] Microsoft.Graph.Beta.DeviceManagement loaded." -ForegroundColor Green
-    } catch {
-        Write-Host "[!] Could not load sub-module. Falling back to Select-MgProfile ..." -ForegroundColor Yellow
-        try {
-            Import-Module Microsoft.Graph.Beta -ErrorAction Stop
-            Select-MgProfile -Name beta -ErrorAction Stop
-            Write-Host "[✓] Microsoft.Graph.Beta loaded with beta profile." -ForegroundColor Green
-        } catch {
-            Write-Host "[✗] Failed to load Microsoft.Graph.Beta: $_" -ForegroundColor Red
-            Write-Host "    Try: Install-Module Microsoft.Graph.Beta -Scope CurrentUser -Force" -ForegroundColor Yellow
-            exit 1
+function Invoke-GraphGet {
+    <#
+    .SYNOPSIS
+        Calls Invoke-MgGraphRequest with pagination support.
+        Graph API returns @odata.nextLink when there are more results.
+        This function follows the chain until all pages are collected.
+    #>
+    param(
+        [Parameter(Mandatory)]
+        [string]$Uri
+    )
+
+    $allItems = @()
+    $nextLink = $Uri
+
+    do {
+        Write-Host "    Fetching page ..." -ForegroundColor Gray
+        $response = Invoke-MgGraphRequest -Uri $nextLink -Method GET -OutputType PSObject
+        $pageItems = $response.value
+        if ($pageItems) {
+            $allItems += $pageItems
+            Write-Host "    Got $($pageItems.Count) items (total: $($allItems.Count))" -ForegroundColor Gray
         }
-    }
+        $nextLink = $response.'@odata.nextLink'
+    } while ($nextLink)
+
+    return $allItems
 }
 
 function Connect-ToGraph {
-    Write-Host "[*] Connecting to Microsoft Graph (beta) ..." -ForegroundColor Cyan
-
-    # Disable WAM — prevents auth issues on Windows
-    if ($DisableWAM) {
-        Write-Host "    Disabling WAM login ..." -ForegroundColor Gray
-        Set-MgGraphOption -DisableLoginByWAM $true
-    }
+    Write-Host "[*] Connecting to Microsoft Graph ..." -ForegroundColor Cyan
 
     $scopes = @(
         "DeviceManagementConfiguration.Read.All",
@@ -122,7 +125,7 @@ function Connect-ToGraph {
     $scopes | ForEach-Object { Write-Host "      • $_" -ForegroundColor Gray }
 
     $connectParams = @{
-        Scopes     = $scopes
+        Scopes      = $scopes
         ErrorAction = "Stop"
     }
 
@@ -132,6 +135,7 @@ function Connect-ToGraph {
     }
 
     if ($DisableWAM) {
+        Write-Host "    Disabling WAM login ..." -ForegroundColor Gray
         $connectParams.DisableLoginByWAM = $true
     }
 
@@ -140,13 +144,13 @@ function Connect-ToGraph {
         Write-Host "[✓] Connected to Microsoft Graph." -ForegroundColor Green
         Write-Host ""
         Write-Host "    Authenticated user:" -ForegroundColor Gray
-        Get-MgContext | Select-Object Account, ClientId, AuthType | Format-List | Out-String | ForEach-Object { Write-Host $_ -ForegroundColor Gray }
+        Get-MgContext | Select-Object Account, ClientId, AuthType | Format-List
     } catch {
         Write-Host "[✗] Authentication failed: $_" -ForegroundColor Red
         Write-Host ""
         Write-Host "    Troubleshooting:" -ForegroundColor Yellow
-        Write-Host "      1. If you see 'WAM' errors, re-run with: .\Export-IntunePolicies.ps1 -DisableWAM" -ForegroundColor Gray
-        Write-Host "      2. If you need a custom app, use: .\Export-IntunePolicies.ps1 -ClientId YOUR_APP_ID" -ForegroundColor Gray
+        Write-Host "      1. If you see 'WAM' errors, re-run with: -DisableWAM" -ForegroundColor Gray
+        Write-Host "      2. If you need a custom app, use: -ClientId YOUR_APP_ID" -ForegroundColor Gray
         Write-Host "      3. Make sure you have Global Admin or Intune Admin rights" -ForegroundColor Gray
         exit 1
     }
@@ -155,11 +159,16 @@ function Connect-ToGraph {
 function Export-ConfigProfiles {
     param([string]$OutputPath)
 
-    Write-Host "[*] Fetching device configuration policies ..." -ForegroundColor Cyan
+    Write-Host "[*] Fetching device configuration policies (Graph API) ..." -ForegroundColor Cyan
 
-    $profiles = Get-MgDeviceManagementConfigurationPolicy -ErrorAction Stop
+    try {
+        $profiles = Invoke-GraphGet -Uri "https://graph.microsoft.com/beta/deviceManagement/configurationPolicies"
+    } catch {
+        Write-Host "[✗] Failed to fetch configuration policies: $_" -ForegroundColor Red
+        return $null
+    }
 
-    if (-not $profiles) {
+    if (-not $profiles -or $profiles.Count -eq 0) {
         Write-Host "[!] No configuration policies found." -ForegroundColor Yellow
         return $null
     }
@@ -169,28 +178,29 @@ function Export-ConfigProfiles {
     $results = @()
 
     foreach ($p in $profiles) {
-        Write-Host "    Processing: $($p.Name) ..." -ForegroundColor Gray
+        Write-Host "    Processing: $($p.name) ..." -ForegroundColor Gray
         try {
-            $settings = Get-MgDeviceManagementConfigurationPolicySetting `
-                -DeviceManagementConfigurationPolicyId $p.Id -ErrorAction Stop
+            $settingsUri = "https://graph.microsoft.com/beta/deviceManagement/configurationPolicies/$($p.id)/settings"
+            $settings = Invoke-MgGraphRequest -Uri $settingsUri -Method GET -OutputType PSObject
+            $settingsJson = $settings | ConvertTo-Json -Depth 10
         } catch {
-            Write-Host "    [⚠] Could not fetch settings for $($p.Name): $_" -ForegroundColor Yellow
-            $settings = $null
+            Write-Host "    [⚠] Could not fetch settings for $($p.name): $_" -ForegroundColor Yellow
+            $settingsJson = "[]"
         }
 
         $results += [PSCustomObject]@{
-            Id                  = $p.Id
-            Name                = $p.Name
-            Description         = $p.Description
-            Technologies        = $p.Technologies
-            CreatedDateTime     = $p.CreatedDateTime
-            LastModifiedDateTime = $p.LastModifiedDateTime
-            Settings            = if ($settings) { $settings | ConvertTo-Json -Depth 10 } else { "[]" }
+            Id                  = $p.id
+            Name                = $p.name
+            Description         = $p.description
+            Technologies        = $p.technologies -join "; "
+            CreatedDateTime     = $p.createdDateTime
+            LastModifiedDateTime = $p.lastModifiedDateTime
+            Settings            = $settingsJson
         }
     }
 
     $jsonPath = Join-Path $OutputPath "intune-policies-export.json"
-    $results | ConvertTo-Json -Depth 10 -Compress | Out-File $jsonPath -Encoding utf8
+    $results | ConvertTo-Json -Depth 10 | Out-File $jsonPath -Encoding utf8
     Write-Host "[✓] Configuration profiles exported → $jsonPath" -ForegroundColor Green
 
     return $jsonPath
@@ -199,11 +209,16 @@ function Export-ConfigProfiles {
 function Export-CompliancePolicies {
     param([string]$OutputPath)
 
-    Write-Host "[*] Fetching device compliance policies ..." -ForegroundColor Cyan
+    Write-Host "[*] Fetching device compliance policies (Graph API) ..." -ForegroundColor Cyan
 
-    $policies = Get-MgDeviceManagementDeviceCompliancePolicy -ErrorAction Stop
+    try {
+        $policies = Invoke-GraphGet -Uri "https://graph.microsoft.com/beta/deviceManagement/deviceCompliancePolicies"
+    } catch {
+        Write-Host "[✗] Failed to fetch compliance policies: $_" -ForegroundColor Red
+        return $null
+    }
 
-    if (-not $policies) {
+    if (-not $policies -or $policies.Count -eq 0) {
         Write-Host "[!] No compliance policies found." -ForegroundColor Yellow
         return $null
     }
@@ -211,7 +226,7 @@ function Export-CompliancePolicies {
     Write-Host "[✓] Found $($policies.Count) compliance polic(ies)." -ForegroundColor Green
 
     $jsonPath = Join-Path $OutputPath "intune-compliance-export.json"
-    $policies | ConvertTo-Json -Depth 10 -Compress | Out-File $jsonPath -Encoding utf8
+    $policies | ConvertTo-Json -Depth 10 | Out-File $jsonPath -Encoding utf8
     Write-Host "[✓] Compliance policies exported → $jsonPath" -ForegroundColor Green
 
     return $jsonPath
@@ -233,6 +248,7 @@ function Show-Summary {
         Write-Host "  Configuration Profiles:" -ForegroundColor White
         Write-Host "    Path : $ConfigPath" -ForegroundColor Gray
         Write-Host "    Size : $([math]::Round($size, 1)) KB" -ForegroundColor Gray
+        Write-Host "    Items: $(@(Get-Content $ConfigPath -Raw | ConvertFrom-Json).Count)" -ForegroundColor Gray
     }
 
     if ($CompliancePath -and (Test-Path $CompliancePath)) {
@@ -240,13 +256,14 @@ function Show-Summary {
         Write-Host "  Compliance Policies:" -ForegroundColor White
         Write-Host "    Path : $CompliancePath" -ForegroundColor Gray
         Write-Host "    Size : $([math]::Round($size, 1)) KB" -ForegroundColor Gray
+        Write-Host "    Items: $(@(Get-Content $CompliancePath -Raw | ConvertFrom-Json).Count)" -ForegroundColor Gray
     }
 
     Write-Host ""
     Write-Host "  Next steps:" -ForegroundColor Yellow
-    Write-Host "    1. Open the JSON file(s) in VS Code or Notepad++" -ForegroundColor Gray
-    Write-Host "    2. Copy the contents and paste into your Matrix chat" -ForegroundColor Gray
-    Write-Host "    3. Use Set-Clipboard if you have the -Clipboard switch" -ForegroundColor Gray
+    Write-Host "    1. Copy the config profiles JSON and paste into your Matrix chat" -ForegroundColor Gray
+    Write-Host "    2. Use: .\Export-IntunePolicies.ps1 -DisableWAM -Clipboard" -ForegroundColor Gray
+    Write-Host "    3. Then paste here (Ctrl+V)" -ForegroundColor Gray
     Write-Host ""
 }
 
@@ -260,39 +277,35 @@ if (-not (Test-Path $ExportPath)) {
     Write-Host "[*] Created export directory: $ExportPath" -ForegroundColor Gray
 }
 
-# Step 2 — Install / verify modules
-Write-Host "[*] Checking required modules ..." -ForegroundColor Cyan
-Install-ModuleIfMissing -ModuleName "Microsoft.Graph.Beta"
+# Step 2 — Install / verify Microsoft.Graph.Authentication module
+Write-Host "[*] Checking required module ..." -ForegroundColor Cyan
+Install-ModuleIfMissing -ModuleName "Microsoft.Graph.Authentication"
 Write-Host ""
 
-# Step 3 — Load the beta module
-Import-GraphModule
-Write-Host ""
-
-# Step 4 — Disable WAM and authenticate
+# Step 3 — Authenticate
 Connect-ToGraph
 Write-Host ""
 
-# Step 5 — Export configuration profiles
+# Step 4 — Export configuration profiles
 $configPath = Export-ConfigProfiles -OutputPath $ExportPath
 
 Write-Host ""
 
-# Step 6 — Export compliance policies
+# Step 5 — Export compliance policies
 $compliancePath = Export-CompliancePolicies -OutputPath $ExportPath
 
-# Step 7 — Clipboard (optional)
+# Step 6 — Clipboard (optional)
 if ($Clipboard -and $configPath -and (Test-Path $configPath)) {
     try {
         Get-Content $configPath -Raw | Set-Clipboard
         Write-Host "[✓] Configuration profiles copied to clipboard." -ForegroundColor Green
     } catch {
         Write-Host "[⚠] Could not copy to clipboard: $_" -ForegroundColor Yellow
-        Write-Host "    Try running: Get-Content '$configPath' | Set-Clipboard" -ForegroundColor Gray
+        Write-Host "    Try: Get-Content '$configPath' | Set-Clipboard" -ForegroundColor Gray
     }
 }
 
-# Step 8 — Summary
+# Step 7 — Summary
 Show-Summary -ConfigPath $configPath -CompliancePath $compliancePath
 
 Write-Host "Done." -ForegroundColor Cyan
