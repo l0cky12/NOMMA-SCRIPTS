@@ -14,4 +14,4 @@ powershell -ExecutionPolicy Bypass -File "Export-IntunePolicies.ps1" -DisableWAM
 
 echo.
 echo Press any key to exit...
-pause >nul
+pause >nul

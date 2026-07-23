@@ -308,4 +308,4 @@ if ($Clipboard -and $configPath -and (Test-Path $configPath)) {
 # Step 7 — Summary
 Show-Summary -ConfigPath $configPath -CompliancePath $compliancePath
 
-Write-Host "Done." -ForegroundColor Cyan
+Write-Host "Done." -ForegroundColor Cyan
