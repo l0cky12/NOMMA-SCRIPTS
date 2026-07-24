@@ -76,7 +76,13 @@ function Get-ZabbixAgent2Paths {
 }
 
 function Install-ZabbixAgent2 {
-    param([string]$MsiUrl, [string]$InstallDir, [string]$MsiLogPath)
+    [CmdletBinding()]
+    param(
+        [string]$MsiUrl,
+        [string]$InstallDir,
+        [string]$MsiLogPath
+    )
+    $ErrorActionPreference = 'Stop'
 
     $msiPath = Join-Path $env:TEMP 'zabbix_agent2.msi'
 
@@ -93,7 +99,40 @@ function Install-ZabbixAgent2 {
     if (-not (Test-Path -LiteralPath $msiPath)) {
         throw "Download failed — MSI not found at $msiPath"
     }
-    Write-Info "Downloaded to $msiPath"
+
+    # Validate MSI is not truncated (expect at least 5 MB for a real Zabbix Agent 2 MSI)
+    $msiFile = Get-Item -LiteralPath $msiPath
+    $minimumSize = 5MB
+    if ($msiFile.Length -lt $minimumSize) {
+        throw "Downloaded MSI is too small ($($msiFile.Length) bytes). Expected at least $minimumSize bytes. The download may have failed or returned an error page."
+    }
+    Write-Info "Downloaded to $msiPath ($($msiFile.Length) bytes)"
+
+    # Clean up any previous partial install that could block a fresh install
+    Write-Info 'Checking for and cleaning up any previous Zabbix Agent 2 install ...'
+    $existing = Get-CimInstance Win32_Service -Filter "Name='Zabbix Agent 2'" -ErrorAction SilentlyContinue
+    if ($existing) {
+        Write-Info 'Stopping previous Zabbix Agent 2 service ...'
+        Stop-Service -Name 'Zabbix Agent 2' -Force -ErrorAction SilentlyContinue
+        Start-Sleep -Seconds 2
+        # Kill any lingering agent processes
+        Get-Process -Name 'zabbix_agent2' -ErrorAction SilentlyContinue | Stop-Process -Force
+    }
+    # Also check for stale zabbix_agent2.exe processes running outside the service
+    $staleProcs = Get-Process -Name 'zabbix_agent2' -ErrorAction SilentlyContinue
+    if ($staleProcs) {
+        $staleProcs | Stop-Process -Force
+        Write-Info "Killed $($staleProcs.Count) stale agent process(es)."
+    }
+    # Remove any existing service via msiexec /x if it's in a bad state
+    $existingProduct = Get-CimInstance Win32_Product -Filter "Name LIKE '%Zabbix Agent 2%'" -ErrorAction SilentlyContinue
+    if ($existingProduct) {
+        Write-Info "Found existing Zabbix Agent 2 product (GUID: $($existingProduct.IdentifyingNumber)). Uninstalling first ..."
+        $uninstallArgs = @('/x', $existingProduct.IdentifyingNumber, '/qn', '/norestart')
+        $uninstallProc = Start-Process -FilePath msiexec.exe -ArgumentList $uninstallArgs -Wait -PassThru -NoNewWindow
+        Write-Info "Uninstall exit code: $($uninstallProc.ExitCode)"
+        Start-Sleep -Seconds 3
+    }
 
     Write-Info "Installing Zabbix Agent 2 (this may take a minute) ..."
     $installArgs = @(
@@ -107,6 +146,7 @@ function Install-ZabbixAgent2 {
 
     if ($proc.ExitCode -ne 0 -and $proc.ExitCode -ne 3010) {
         # 3010 = reboot required, still a successful install
+        Write-Info "MSI install failed with exit code $($proc.ExitCode). Check verbose log: $MsiLogPath"
         throw "MSI install failed with exit code $($proc.ExitCode). Check log: $MsiLogPath"
     }
 
@@ -145,6 +185,7 @@ if (-not $agent) {
     # Re-read paths after install
     $agent = Get-ZabbixAgent2Paths
     if (-not $agent) {
+        Write-Info "Zabbix Agent 2 service was not found after installation. Check the MSI log: $MsiLogPath"
         throw "Zabbix Agent 2 service was not found after installation. Check the MSI log: $MsiLogPath"
     }
 }
