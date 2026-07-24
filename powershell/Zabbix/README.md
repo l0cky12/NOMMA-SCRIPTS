@@ -7,6 +7,15 @@ Scripts used to support Zabbix Agent 2 and Zabbix-related Windows setup tasks.
 ### `Setup-ZabbixAgent2ScriptFolder.ps1`
 Clones the `zabbix-windows-ad-dhcp-dns-monitoring` repo, copies the `.ps1` files from `scripts/windows`, verifies the target folder, and cleans up the cloned repo afterward.
 
+### `Install-ZabbixAgent2-PSK.ps1`
+Full install of Zabbix Agent 2 from scratch on Windows Server 2012 R2+ with PSK encryption. Downloads the MSI from cdn.zabbix.com, installs silently, writes the PSK file, configures `zabbix_agent2.conf` for TLS/PSK pointing at `10.1.2.61`, optionally creates a firewall rule restricting TCP 10050 to the Zabbix server, restarts the service, and outputs the PSK identity + value needed in the Zabbix frontend.
+
+```powershell
+.\Install-ZabbixAgent2-PSK.ps1
+.\Install-ZabbixAgent2-PSK.ps1 -ZabbixServer '10.1.2.61' -ConfigureFirewall
+.\Install-ZabbixAgent2-PSK.ps1 -SkipInstall -ConfigureFirewall
+```
+
 ### `Deploy-ZabbixAgent2-PSK-Action1.ps1`
 Action1 deployment script for an already-installed Zabbix Agent 2. It sets the Zabbix server address, uses the endpoint computer name as the Zabbix host name, creates a unique PSK, configures PSK in both directions, restricts inbound TCP 10050 to the Zabbix server, restarts the agent, and prints the values to enter in the Zabbix host encryption settings.
 
