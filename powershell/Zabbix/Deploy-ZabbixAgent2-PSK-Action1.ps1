@@ -1,6 +1,8 @@
 # Deploy-ZabbixAgent2-PSK-Action1.ps1
 # Run through Action1 as SYSTEM / Administrator.
-# Requires Zabbix Agent 2 to already be installed.
+# Downloads and installs Zabbix Agent 2 from scratch if not already present,
+# then configures PSK encryption, creates a firewall rule, and outputs the
+# PSK identity + value needed in the Zabbix frontend.
 #
 # After it runs, create or update the host in Zabbix using the PSK identity
 # and PSK value printed in the Action1 output.
@@ -11,6 +13,7 @@ $ErrorActionPreference = 'Stop'
 $ZabbixServer = '10.1.2.61' # Zabbix server / proxy IP address
 $ZabbixServerPort = 10051
 $AgentPort = 10050
+$InstallDir = 'C:\Program Files\Zabbix Agent 2'
 
 # Leave as $env:COMPUTERNAME unless the Zabbix host name must differ.
 $ZabbixHostName = $env:COMPUTERNAME
@@ -20,22 +23,33 @@ $PskIdentity = "$ZabbixHostName-PSK"
 
 # Create a Windows Firewall rule allowing passive checks only from Zabbix.
 $ConfigureFirewall = $true
+
+# Zabbix Agent 2 MSI download URL.
+$MsiUrl = 'https://cdn.zabbix.com/zabbix/binaries/stable/7.4/7.4.12/zabbix_agent2-7.4.12-windows-amd64-openssl.msi'
+
+# Log file for MSI installation details.
+$MsiLogPath = "$env:TEMP\Install-ZabbixAgent2.log"
 # ---------------------------------------------------
 
+function Write-Info {
+    $timestamp = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
+    Write-Output "[$timestamp] $($args[0])"
+}
+
 function Get-ZabbixAgent2Paths {
-    $service = Get-CimInstance Win32_Service -Filter "Name='Zabbix Agent 2'"
+    $service = Get-CimInstance Win32_Service -Filter "Name='Zabbix Agent 2'" -ErrorAction SilentlyContinue
     if (-not $service) {
-        throw "Zabbix Agent 2 is not installed. Install it before running this script."
+        return $null
     }
 
     $configPath = $null
     $exePath = $null
 
-    if ($service.PathName -match '(?i)-c\s+"([^\"]+)"') {
+    if ($service.PathName -match '(?i)-c\s+"([^"]+)"') {
         $configPath = $Matches[1]
     }
 
-    if ($service.PathName -match '^\s*"([^\"]*zabbix_agent2\.exe)"') {
+    if ($service.PathName -match '^\s*"([^"]*zabbix_agent2\.exe)"') {
         $exePath = $Matches[1]
     }
     elseif ($service.PathName -match '^\s*([^\s]*zabbix_agent2\.exe)') {
@@ -55,24 +69,104 @@ function Get-ZabbixAgent2Paths {
     }
 
     [PSCustomObject]@{
-        ExePath = $exePath
-        ConfigPath = $configPath
+        ExePath       = $exePath
+        ConfigPath    = $configPath
         AgentDirectory = Split-Path -Parent $configPath
     }
 }
 
+function Install-ZabbixAgent2 {
+    param([string]$MsiUrl, [string]$InstallDir, [string]$MsiLogPath)
+
+    $msiPath = Join-Path $env:TEMP 'zabbix_agent2.msi'
+
+    Write-Info "Downloading Zabbix Agent 2 MSI from $MsiUrl ..."
+    try {
+        [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+        $webClient = New-Object System.Net.WebClient
+        $webClient.DownloadFile($MsiUrl, $msiPath)
+    }
+    finally {
+        if ($webClient) { $webClient.Dispose() }
+    }
+
+    if (-not (Test-Path -LiteralPath $msiPath)) {
+        throw "Download failed — MSI not found at $msiPath"
+    }
+    Write-Info "Downloaded to $msiPath"
+
+    Write-Info "Installing Zabbix Agent 2 (this may take a minute) ..."
+    $installArgs = @(
+        '/i', "`"$msiPath`"",
+        '/qn',
+        '/norestart',
+        "INSTALLFOLDER=`"$InstallDir`"",
+        "LOGFILE=`"$MsiLogPath`""
+    )
+    $proc = Start-Process -FilePath msiexec.exe -ArgumentList $installArgs -Wait -PassThru -NoNewWindow
+
+    if ($proc.ExitCode -ne 0 -and $proc.ExitCode -ne 3010) {
+        # 3010 = reboot required, still a successful install
+        throw "MSI install failed with exit code $($proc.ExitCode). Check log: $MsiLogPath"
+    }
+
+    Write-Info "MSI install completed (exit code: $($proc.ExitCode))."
+    if ($proc.ExitCode -eq 3010) {
+        Write-Info 'A reboot is pending but not required for configuration.'
+    }
+
+    # Clean up the MSI
+    Remove-Item -LiteralPath $msiPath -Force -ErrorAction SilentlyContinue
+
+    # Give the service a moment to register
+    Start-Sleep -Seconds 3
+}
+
+# ---------------------------------------------------------------------------
+# Step 1 — Pre-flight
+# ---------------------------------------------------------------------------
+
+Write-Info "=== Zabbix Agent 2 PSK deployment ==="
+Write-Info "Target server:  $ZabbixServer`:$ZabbixServerPort"
+Write-Info "Host name:      $ZabbixHostName"
+Write-Info "PSK identity:   $PskIdentity"
+Write-Info "Install dir:    $InstallDir"
+
+# ---------------------------------------------------------------------------
+# Step 2 — Install agent if not already present
+# ---------------------------------------------------------------------------
+
 $agent = Get-ZabbixAgent2Paths
+
+if (-not $agent) {
+    Write-Info "Zabbix Agent 2 is not installed. Installing from scratch ..."
+    Install-ZabbixAgent2 -MsiUrl $MsiUrl -InstallDir $InstallDir -MsiLogPath $MsiLogPath
+
+    # Re-read paths after install
+    $agent = Get-ZabbixAgent2Paths
+    if (-not $agent) {
+        throw "Zabbix Agent 2 service was not found after installation. Check the MSI log: $MsiLogPath"
+    }
+}
+else {
+    Write-Info "Zabbix Agent 2 is already installed."
+}
+
+# ---------------------------------------------------------------------------
+# Step 3 — Configure PSK
+# ---------------------------------------------------------------------------
+
 $pskPath = Join-Path $agent.AgentDirectory 'zabbix_agent2.psk'
 $backupPath = "$($agent.ConfigPath).backup-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
 
-Write-Output "=== Zabbix Agent 2 PSK deployment ==="
-Write-Output "Agent executable: $($agent.ExePath)"
-Write-Output "Agent config:     $($agent.ConfigPath)"
-Write-Output "Zabbix server:    $ZabbixServer`:$ZabbixServerPort"
-Write-Output "Zabbix hostname:  $ZabbixHostName"
+Write-Info "Agent executable: $($agent.ExePath)"
+Write-Info "Agent config:     $($agent.ConfigPath)"
+Write-Info "PSK file path:    $pskPath"
 
 # Back up config and retain every unrelated existing setting.
 Copy-Item -LiteralPath $agent.ConfigPath -Destination $backupPath -Force
+Write-Info "Config backed up to $backupPath"
+
 $configLines = [System.IO.File]::ReadAllLines($agent.ConfigPath)
 
 # Remove only active values that this script owns. Commented documentation lines stay intact.
@@ -97,6 +191,12 @@ $configLines += @(
 $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
 [System.IO.File]::WriteAllLines($agent.ConfigPath, $configLines, $utf8NoBom)
 
+Write-Info 'Config updated with PSK settings.'
+
+# ---------------------------------------------------------------------------
+# Step 4 — Generate PSK
+# ---------------------------------------------------------------------------
+
 # Generate a unique 32-byte (64-character hexadecimal) PSK.
 $randomBytes = New-Object byte[] 32
 $rng = New-Object System.Security.Cryptography.RNGCryptoServiceProvider
@@ -108,6 +208,12 @@ finally {
 }
 $pskValue = [BitConverter]::ToString($randomBytes) -replace '-', ''
 [System.IO.File]::WriteAllText($pskPath, $pskValue, [System.Text.Encoding]::ASCII)
+
+Write-Info "PSK file written to $pskPath"
+
+# ---------------------------------------------------------------------------
+# Step 5 — Firewall rule (optional)
+# ---------------------------------------------------------------------------
 
 if ($ConfigureFirewall) {
     $ruleName = 'Zabbix Agent 2 - TCP 10050 from Zabbix Server'
@@ -121,11 +227,22 @@ if ($ConfigureFirewall) {
         -LocalPort $AgentPort `
         -RemoteAddress $ZabbixServer `
         -Profile Any | Out-Null
+
+    Write-Info "Firewall rule created: $ruleName"
 }
 
+# ---------------------------------------------------------------------------
+# Step 6 — Restart service
+# ---------------------------------------------------------------------------
+
+Write-Info 'Restarting Zabbix Agent 2 service ...'
 Restart-Service -Name 'Zabbix Agent 2' -Force
 Start-Sleep -Seconds 5
 $serviceStatus = Get-Service -Name 'Zabbix Agent 2'
+
+# ---------------------------------------------------------------------------
+# Step 7 — Output results
+# ---------------------------------------------------------------------------
 
 Write-Output ""
 Write-Output "=== Deployment result ==="
@@ -133,6 +250,7 @@ Write-Output "Service status: $($serviceStatus.Status)"
 Write-Output "Firewall rule:  $($ConfigureFirewall)"
 Write-Output "Config backup:  $backupPath"
 Write-Output ""
+
 Write-Output "=== Enter these values in Zabbix host encryption ==="
 Write-Output "Host name:                  $ZabbixHostName"
 Write-Output "Agent interface:            <this endpoint IP>:$AgentPort"
@@ -141,9 +259,11 @@ Write-Output "Connections from host:      PSK"
 Write-Output "PSK identity:               $PskIdentity"
 Write-Output "PSK value:                  $pskValue"
 Write-Output ""
+
 Write-Output "=== Endpoint-to-server connectivity test ==="
 Test-NetConnection -ComputerName $ZabbixServer -Port $ZabbixServerPort | Select-Object ComputerName, RemotePort, TcpTestSucceeded
 Write-Output ""
+
 Write-Output "=== Latest Agent 2 log entries ==="
 $logPath = Join-Path $agent.AgentDirectory 'zabbix_agent2.log'
 if (Test-Path -LiteralPath $logPath) {
