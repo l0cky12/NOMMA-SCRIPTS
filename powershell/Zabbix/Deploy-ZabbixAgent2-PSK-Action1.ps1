@@ -84,6 +84,14 @@ function Install-ZabbixAgent2 {
     )
     $ErrorActionPreference = 'Stop'
 
+    # Must run as admin for MSI install
+    $principal = [Security.Principal.WindowsPrincipal]::new(
+        [Security.Principal.WindowsIdentity]::GetCurrent()
+    )
+    if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+        throw 'This script must run as Administrator to install Zabbix Agent 2.'
+    }
+
     $msiPath = Join-Path $env:TEMP 'zabbix_agent2.msi'
 
     Write-Info "Downloading Zabbix Agent 2 MSI from $MsiUrl ..."
@@ -140,7 +148,7 @@ function Install-ZabbixAgent2 {
         '/qn',
         '/norestart',
         "INSTALLFOLDER=`"$InstallDir`"",
-        "LOGFILE=`"$MsiLogPath`""
+        '/lvx*', "`"$MsiLogPath`""
     )
     $proc = Start-Process -FilePath msiexec.exe -ArgumentList $installArgs -Wait -PassThru -NoNewWindow
 
