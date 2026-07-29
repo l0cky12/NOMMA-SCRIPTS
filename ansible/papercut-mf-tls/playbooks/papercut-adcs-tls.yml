@@ -18,13 +18,7 @@
     papercut_user: papercut
     papercut_group: papercut
     papercut_server_dir: "{{ papercut_root }}/server"
-    papercut_service_name: papercut
     papercut_ssl_dir: "{{ papercut_root }}/ssl"
-
-    # Set this in inventory/group_vars or --extra-vars. It deliberately has no
-    # guessed default: an incorrect DNS SAN makes the certificate unusable.
-    papercut_server_fqdn: ""
-    papercut_server_ip: 10.1.0.113
     papercut_adcs_template: WebServer
     papercut_adcs_issuing_ca: issuing-ca.nomma.lan
 
@@ -52,17 +46,31 @@
           {{ ansible_distribution }} {{ ansible_distribution_version }}.
       tags: [always]
 
-    - name: Assert CSR identity variables are set
+    - name: Assert CSR DNS and IP SAN identity variables are set
       ansible.builtin.assert:
         that:
-          - papercut_server_fqdn is string
-          - papercut_server_fqdn | length > 0
-          - papercut_server_fqdn is match('^(?=.{1,253}$)(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\\.)+[A-Za-z]{2,63}$')
-          - papercut_server_ip is match('^(?:25[0-5]|2[0-4][0-9]|1?[0-9]{1,2})(?:\\.(?:25[0-5]|2[0-4][0-9]|1?[0-9]{1,2})){3}$')
+          - papercut_server_fqdn is defined
+          - (papercut_server_fqdn | default('')) | length > 0
+          - (papercut_server_fqdn | default('')) is match('^(?=.{1,253}$)(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z]{2,63}$')
+          - (papercut_server_ip | default('10.1.0.113')) is match('^(?:25[0-5]|2[0-4][0-9]|1?[0-9]{1,2})(?:\.(?:25[0-5]|2[0-4][0-9]|1?[0-9]{1,2})){3}$')
         fail_msg: >-
-          Set a valid papercut_server_fqdn (no default is intentionally supplied)
-          and a valid IPv4 papercut_server_ip.
-      tags: [always]
+          Set a valid papercut_server_fqdn explicitly in inventory/group_vars or
+          --extra-vars. papercut_server_ip defaults to 10.1.0.113 but may be overridden.
+      tags: [csr]
+
+    - name: Assert shared TLS SNI identity for import verification
+      ansible.builtin.assert:
+        that:
+          - papercut_server_fqdn is defined
+          - (papercut_server_fqdn | default('')) | length > 0
+          - (papercut_server_fqdn | default('')) is match('^(?=.{1,253}$)(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z]{2,63}$')
+          - (papercut_ssl_port | default(9191) | string) is match('^[1-9][0-9]{0,4}$')
+          - (papercut_ssl_port | default(9191) | int) <= 65535
+        fail_msg: >-
+          Import verifies the listener with TLS SNI. Set a valid
+          papercut_server_fqdn explicitly; papercut_ssl_port defaults to 9191
+          and may be overridden.
+      tags: [import]
 
     - name: Assert Vault keystore secret is set for import
       ansible.builtin.assert:
@@ -83,7 +91,7 @@
         state: present
         update_cache: true
         cache_valid_time: 3600
-      tags: [csr]
+      tags: [csr, packages]
 
     - name: Create restricted TLS working directory
       ansible.builtin.file:
@@ -100,6 +108,18 @@
       register: papercut_tls_key_stat
       tags: [csr]
 
+    - name: Report CSR check-mode key and CSR creation
+      ansible.builtin.debug:
+        msg: >-
+          Check mode: the missing server-local RSA-2048 private key and/or CSR
+          would be created during a non-check CSR run; no cryptographic material
+          is created or file permissions enforced for absent files in check mode.
+      when: >-
+        ansible_check_mode and
+        (not papercut_tls_key_stat.stat.exists)
+      changed_when: false
+      tags: [csr]
+
     - name: Generate RSA 2048 private key only when absent
       ansible.builtin.command:
         argv:
@@ -108,7 +128,7 @@
           - -out
           - "{{ papercut_tls_key_path }}"
           - '2048'
-      when: not papercut_tls_key_stat.stat.exists
+      when: not ansible_check_mode and not papercut_tls_key_stat.stat.exists
       changed_when: true
       no_log: true
       tags: [csr]
@@ -120,6 +140,7 @@
         owner: "{{ papercut_user }}"
         group: "{{ papercut_group }}"
         mode: '0600'
+      when: not ansible_check_mode or papercut_tls_key_stat.stat.exists
       tags: [csr]
 
     - name: Write OpenSSL CSR configuration with required SANs and usages
@@ -146,7 +167,7 @@
 
           [ alt_names ]
           DNS.1 = {{ papercut_server_fqdn }}
-          IP.1 = {{ papercut_server_ip }}
+          IP.1 = {{ papercut_server_ip | default('10.1.0.113') }}
       register: papercut_tls_openssl_config_result
       tags: [csr]
 
@@ -154,6 +175,17 @@
       ansible.builtin.stat:
         path: "{{ papercut_tls_csr_path }}"
       register: papercut_tls_csr_stat
+      tags: [csr]
+
+    - name: Report CSR check-mode CSR generation
+      ansible.builtin.debug:
+        msg: >-
+          Check mode: the CSR would be generated from the existing server-local
+          private key because it is missing or its OpenSSL configuration changes.
+      when: >-
+        ansible_check_mode and
+        (not papercut_tls_csr_stat.stat.exists or papercut_tls_openssl_config_result.changed)
+      changed_when: false
       tags: [csr]
 
     - name: Generate CSR using the server-resident private key
@@ -169,9 +201,10 @@
           - -config
           - "{{ papercut_tls_openssl_config }}"
       when: >-
-        not papercut_tls_csr_stat.stat.exists or
+        not ansible_check_mode and
+        (not papercut_tls_csr_stat.stat.exists or
         papercut_tls_openssl_config_result.changed or
-        not papercut_tls_key_stat.stat.exists
+        not papercut_tls_key_stat.stat.exists)
       changed_when: true
       tags: [csr]
 
@@ -182,6 +215,7 @@
         owner: "{{ papercut_user }}"
         group: "{{ papercut_group }}"
         mode: '0644'
+      when: not ansible_check_mode or papercut_tls_csr_stat.stat.exists
       tags: [csr]
 
     - name: Display non-interactive AD CS submission and return instructions
@@ -225,16 +259,28 @@
         label: "{{ item.item }}"
       tags: [import]
 
+    - name: Explain import check-mode scope
+      ansible.builtin.debug:
+        msg: >-
+          Check mode confirms required files are present and previews managed-file
+          and server.properties changes only. It does not run OpenSSL validation,
+          calculate input state, build/deploy PKCS#12, restart PaperCut, or probe TLS.
+      when: ansible_check_mode
+      changed_when: false
+      tags: [import]
+
     - name: Validate returned leaf certificate parses as PEM X.509
       ansible.builtin.command:
         argv: [openssl, x509, -in, "{{ papercut_tls_leaf_path }}", -noout]
       changed_when: false
+      when: not ansible_check_mode
       tags: [import]
 
     - name: Validate returned CA chain parses as PEM certificates
       ansible.builtin.command:
         argv: [openssl, crl2pkcs7, -nocrl, -certfile, "{{ papercut_tls_ca_chain_path }}", -outform, PEM]
       changed_when: false
+      when: not ansible_check_mode
       tags: [import]
 
     - name: Read private-key modulus
@@ -243,6 +289,7 @@
       register: papercut_tls_key_modulus
       changed_when: false
       no_log: true
+      when: not ansible_check_mode
       tags: [import]
 
     - name: Read leaf-certificate modulus
@@ -250,6 +297,7 @@
         argv: [openssl, x509, -noout, -modulus, -in, "{{ papercut_tls_leaf_path }}"]
       register: papercut_tls_leaf_modulus
       changed_when: false
+      when: not ansible_check_mode
       tags: [import]
 
     - name: Assert returned leaf matches the preserved private key
@@ -259,12 +307,14 @@
           Returned leaf certificate does not match the server-resident private key.
           Do not deploy it; generate a new CSR from the preserved key and reissue.
       no_log: true
+      when: not ansible_check_mode
       tags: [import]
 
     - name: Validate returned leaf against returned CA chain
       ansible.builtin.command:
         argv: [openssl, verify, -CAfile, "{{ papercut_tls_ca_chain_path }}", "{{ papercut_tls_leaf_path }}"]
       changed_when: false
+      when: not ansible_check_mode
       tags: [import]
 
     - name: Calculate non-secret certificate input fingerprint
@@ -273,34 +323,49 @@
       register: papercut_tls_input_fingerprint
       changed_when: false
       no_log: true
+      when: not ansible_check_mode
       tags: [import]
 
-    - name: Record certificate input fingerprint
-      ansible.builtin.copy:
-        dest: "{{ papercut_tls_keystore_stamp }}"
-        content: "{{ papercut_tls_input_fingerprint.stdout }}\n"
-        owner: root
-        group: "{{ papercut_group }}"
-        mode: '0640'
-      register: papercut_tls_fingerprint_stamp
-      no_log: true
-      tags: [import]
-
-    - name: Record keystore-password fingerprint without storing the password
-      ansible.builtin.copy:
-        dest: "{{ papercut_tls_password_stamp }}"
-        content: "{{ papercut_keystore_password | hash('sha256') }}\n"
-        owner: root
-        group: "{{ papercut_group }}"
-        mode: '0640'
-      register: papercut_tls_password_stamp_result
-      no_log: true
-      tags: [import]
-
-    - name: Check deployed PKCS#12 keystore
+    - name: Check deployed PKCS#12 keystore and activation stamps
       ansible.builtin.stat:
-        path: "{{ papercut_tls_keystore_path }}"
-      register: papercut_tls_keystore_stat
+        path: "{{ item }}"
+      loop:
+        - "{{ papercut_tls_keystore_path }}"
+        - "{{ papercut_tls_keystore_stamp }}"
+        - "{{ papercut_tls_password_stamp }}"
+      register: papercut_tls_activation_files
+      tags: [import]
+
+    - name: Read existing activation stamps
+      ansible.builtin.slurp:
+        src: "{{ item.item }}"
+      loop: "{{ papercut_tls_activation_files.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+      when: not ansible_check_mode and item.stat.exists
+      register: papercut_tls_activation_stamp_contents
+      no_log: true
+      tags: [import]
+
+    - name: Determine whether a replacement PKCS#12 is required
+      ansible.builtin.set_fact:
+        papercut_tls_keystore_rebuild_required: >-
+          {{
+            not papercut_tls_activation_files.results[0].stat.exists or
+            not papercut_tls_activation_files.results[1].stat.exists or
+            not papercut_tls_activation_files.results[2].stat.exists or
+            (papercut_tls_activation_stamp_contents.results[1].content | default('') | b64decode) != (papercut_tls_input_fingerprint.stdout + '\n') or
+            (papercut_tls_activation_stamp_contents.results[2].content | default('') | b64decode) != ((papercut_keystore_password | hash('sha256')) + '\n')
+          }}
+      when: not ansible_check_mode
+      no_log: true
+      tags: [import]
+
+    - name: Remove an abandoned replacement PKCS#12 before rebuilding
+      ansible.builtin.file:
+        path: "{{ papercut_tls_keystore_path }}.new"
+        state: absent
+      when: not ansible_check_mode and papercut_tls_keystore_rebuild_required | bool
       tags: [import]
 
     - name: Build replacement PKCS#12 keystore from leaf, chain, and local key
@@ -323,21 +388,50 @@
           - stdin
         stdin: "{{ papercut_keystore_password }}"
         stdin_add_newline: true
-      when: >-
-        not papercut_tls_keystore_stat.stat.exists or
-        papercut_tls_fingerprint_stamp.changed or
-        papercut_tls_password_stamp_result.changed
+      when: not ansible_check_mode and papercut_tls_keystore_rebuild_required | bool
       register: papercut_tls_keystore_build
       changed_when: true
       no_log: true
       tags: [import]
 
-    - name: Atomically deploy the replacement PKCS#12 keystore # noqa no-handler
+    - name: Secure replacement PKCS#12 before activation # noqa no-handler
+      ansible.builtin.file:
+        path: "{{ papercut_tls_keystore_path }}.new"
+        state: file
+        owner: "{{ papercut_user }}"
+        group: "{{ papercut_group }}"
+        mode: '0600'
+      when: papercut_tls_keystore_build.changed | default(false)
+      tags: [import]
+
+    - name: Atomically activate the replacement PKCS#12 keystore # noqa no-handler
       ansible.builtin.command:
         argv: [mv, "{{ papercut_tls_keystore_path }}.new", "{{ papercut_tls_keystore_path }}"]
       when: papercut_tls_keystore_build.changed | default(false)
       changed_when: true
       notify: Restart PaperCut MF
+      tags: [import]
+
+    - name: Record certificate input fingerprint after successful activation # noqa no-handler
+      ansible.builtin.copy:
+        dest: "{{ papercut_tls_keystore_stamp }}"
+        content: "{{ papercut_tls_input_fingerprint.stdout }}\n"
+        owner: root
+        group: "{{ papercut_group }}"
+        mode: '0640'
+      when: papercut_tls_keystore_build.changed | default(false)
+      no_log: true
+      tags: [import]
+
+    - name: Record keystore-password fingerprint after successful activation # noqa no-handler
+      ansible.builtin.copy:
+        dest: "{{ papercut_tls_password_stamp }}"
+        content: "{{ papercut_keystore_password | hash('sha256') }}\n"
+        owner: root
+        group: "{{ papercut_group }}"
+        mode: '0640'
+      when: papercut_tls_keystore_build.changed | default(false)
+      no_log: true
       tags: [import]
 
     - name: Secure deployed PKCS#12 keystore
@@ -347,7 +441,9 @@
         owner: "{{ papercut_user }}"
         group: "{{ papercut_group }}"
         mode: '0600'
-      when: papercut_tls_keystore_stat.stat.exists or papercut_tls_keystore_build.changed | default(false)
+      when: >-
+        papercut_tls_activation_files.results[0].stat.exists or
+        papercut_tls_keystore_build.changed | default(false)
       tags: [import]
 
     # PaperCut reads a server-root-relative path from server.properties.
@@ -385,8 +481,30 @@
       notify: Restart PaperCut MF
       tags: [import]
 
+    - name: Configure PaperCut TLS port
+      ansible.builtin.lineinfile:
+        path: "{{ papercut_server_properties_path }}"
+        regexp: '^server\.port\.ssl='
+        line: "server.port.ssl={{ papercut_ssl_port | default(9191) }}"
+        owner: "{{ papercut_user }}"
+        group: "{{ papercut_group }}"
+        mode: '0600'
+      notify: Restart PaperCut MF
+      tags: [import]
+
     - name: Apply PaperCut changes before certificate verification
       ansible.builtin.meta: flush_handlers
+      when: not ansible_check_mode
+      tags: [import]
+
+    - name: Wait for PaperCut TLS listener after a changed import
+      ansible.builtin.wait_for:
+        host: 127.0.0.1
+        port: "{{ papercut_ssl_port | default(9191) | int }}"
+        delay: 1
+        timeout: 90
+        connect_timeout: 5
+        state: started
       when: not ansible_check_mode
       tags: [import]
 
@@ -398,16 +516,19 @@
       when: not ansible_check_mode
       tags: [import]
 
-    - name: Read leaf certificate currently served on localhost port 9191
+    - name: Read leaf certificate currently served on the configured localhost TLS port
       ansible.builtin.shell:
         cmd: >-
           set -o pipefail &&
-          openssl s_client -connect 127.0.0.1:9191 -servername {{ papercut_server_fqdn }}
-          </dev/null 2>/dev/null |
+          openssl s_client -connect 127.0.0.1:{{ papercut_ssl_port | default(9191) | int }}
+          -servername {{ papercut_server_fqdn }} </dev/null 2>/dev/null |
           openssl x509 -noout -serial -fingerprint -sha256
         executable: /bin/bash
       register: papercut_tls_served_leaf
       changed_when: false
+      until: papercut_tls_served_leaf.rc == 0 and papercut_tls_served_leaf.stdout | length > 0
+      retries: 6
+      delay: 5
       when: not ansible_check_mode
       tags: [import]
 
@@ -416,8 +537,8 @@
         that:
           - papercut_tls_expected_leaf.stdout_lines | sort == papercut_tls_served_leaf.stdout_lines | sort
         fail_msg: >-
-          Port 9191 did not serve the imported leaf certificate. Inspect
-          {{ papercut_server_properties_path }}, service {{ papercut_service_name }},
+          Configured TLS port {{ papercut_ssl_port | default(9191) }} did not serve the imported leaf certificate.
+          Inspect {{ papercut_server_properties_path }}, service {{ papercut_service_name | default('papercut') }},
           and PaperCut logs before retrying.
       when: not ansible_check_mode
       tags: [import]
@@ -425,5 +546,6 @@
   handlers:
     - name: Restart PaperCut MF
       ansible.builtin.systemd:
-        name: "{{ papercut_service_name }}"
+        name: "{{ papercut_service_name | default('papercut') }}"
         state: restarted
+      when: not ansible_check_mode

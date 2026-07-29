@@ -11,25 +11,29 @@ The validated PaperCut configuration convention is:
 server.keystore.path=custom/papercut-tls.p12
 server.keystore.password=<vault-supplied password>
 server.keystore.type=PKCS12
+server.port.ssl=9191
 ```
 
-The playbook uses the configurable `papercut_service_name` (default:
-`papercut`) and verifies the certificate served by `127.0.0.1:9191` after a
-changed import.
+`papercut_service_name` defaults to `papercut` and `papercut_ssl_port` defaults
+to `9191`. Both may be overridden by normal inventory/group-vars or extra-vars
+precedence. The playbook verifies the certificate served by the configured
+`127.0.0.1` TLS port after a non-check import.
 
 ## Prerequisites
 
 1. On the controller, set the target SSH user in `inventory/hosts.yml`; it must
    be able to `sudo` on the PaperCut host.
-2. Set a real DNS name in an inventory variable (there is deliberately no
-   FQDN default):
+2. Set a real DNS name explicitly in inventory/group variables or extra-vars.
+   It has no default because it is both the CSR DNS SAN and the TLS SNI name used
+   by the import verification. The remaining connection/service defaults can be
+   overridden normally:
 
    ```yaml
    # inventory/group_vars/papercut_mf/main.yml (example; do not commit secrets)
-   papercut_server_fqdn: papercut.example.nomma.lan
-   papercut_server_ip: 10.1.0.113
-   # Optional if the systemd unit differs:
-   # papercut_service_name: papercut
+   papercut_server_fqdn: papercut.example.nomma.lan # required; no guessed default
+   papercut_server_ip: 10.1.0.113                   # optional default shown
+   papercut_service_name: papercut                  # optional default shown
+   papercut_ssl_port: 9191                          # optional default shown
    ```
 
 3. Create `inventory/group_vars/papercut_mf/vault.yml` from
@@ -60,30 +64,43 @@ Submit manually (replace the template if your CA uses another name):
 certreq -submit -attrib "CertificateTemplate:WebServer" papercut-tls.csr papercut-tls.cer
 ```
 
-Return a PEM leaf certificate to `/home/papercut/ssl/papercut-tls.crt` and a
-separate PEM CA chain (issuing CA followed by root CA) to
-`/home/papercut/ssl/nomma-ca-chain.pem`. `certutil -ca.chain ca-chain.p7b`
-can retrieve a Windows chain; convert P7B to PEM on Debian before import:
+Export the CA chain separately on Windows and return the issuing CA followed by
+root CA as PEM. For example, retrieve it as a P7B with
+`certutil -ca.chain ca-chain.p7b`, then convert it on Debian:
 
 ```bash
 openssl pkcs7 -print_certs -in ca-chain.p7b \
   -out /home/papercut/ssl/nomma-ca-chain.pem
 ```
 
+Return a PEM leaf certificate to `/home/papercut/ssl/papercut-tls.crt` and the
+separate PEM CA chain to `/home/papercut/ssl/nomma-ca-chain.pem`.
+
 Validate, build/deploy the PKCS#12 keystore, configure PaperCut, restart only
-when certificate/key/chain/password/configuration inputs changed, and compare
-the served leaf serial/fingerprint on port 9191:
+when certificate/key/chain/password/configuration inputs changed, wait for the
+configured TLS listener, and compare the served leaf serial/fingerprint:
 
 ```bash
 ansible-playbook playbooks/papercut-adcs-tls.yml --tags import \
   --vault-id default@~/.ansible/vault-password.txt
 ```
 
-Use check mode to preview managed-file/configuration changes. Commands that
-need target-returned certificate files or create cryptographic material are
-intentionally skipped or cannot fully predict change in check mode:
+## Check mode
+
+Check mode is intentionally a safe, limited preview; it does not execute
+OpenSSL commands, build or activate a PKCS#12 file, restart PaperCut, or connect
+to the TLS listener.
+
+- `--tags csr --check` reports when missing key/CSR material would be created,
+  while skipping creation and file enforcement for absent files. It can preview
+  the OpenSSL configuration change.
+- `--tags import --check` confirms required remote paths exist and previews
+  managed file and `server.properties` changes. It does **not** validate the
+  returned certificate/key/chain, calculate change state, or predict whether a
+  keystore would be rebuilt.
 
 ```bash
+ansible-playbook playbooks/papercut-adcs-tls.yml --tags csr --check
 ansible-playbook playbooks/papercut-adcs-tls.yml --tags import --check \
   --vault-id default@~/.ansible/vault-password.txt
 ```
@@ -92,10 +109,15 @@ ansible-playbook playbooks/papercut-adcs-tls.yml --tags import --check \
 
 - The key is created only when absent, is mode `0600`, and is never copied off
   the managed host.
+- The CSR includes DNS and IPv4 SANs plus `digitalSignature`,
+  `keyEncipherment`, and `serverAuth` usages.
 - The import stage fails before deployment if files are missing, the PEM leaf or
   CA chain is malformed, the RSA modulus differs, or OpenSSL cannot validate
   the returned chain.
+- Input and password stamps are read before a decision but are written only
+  after a replacement PKCS#12 builds successfully and is atomically activated,
+  so a failed attempt remains retryable.
 - The PKCS#12 password is required from an Ansible Vault-compatible variable,
   is not committed, and is suppressed from task output with `no_log`.
-- PaperCut must be stopped/restarted only by the changed import handler; this
-  repository task does not run against production during development.
+- PaperCut is restarted only by a changed import handler; this repository task
+  does not run against production during development.
