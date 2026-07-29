@@ -1,0 +1,4 @@
+---
+# Copy to inventory/group_vars/papercut_mf/vault.yml, replace the value, then
+# encrypt that file with ansible-vault. Do not commit vault.yml.
+papercut_keystore_password: "REPLACE_WITH_A_STRONG_UNIQUE_PASSWORD"
