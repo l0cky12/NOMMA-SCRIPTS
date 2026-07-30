@@ -53,3 +53,19 @@ source users are transitive members of a configured Entra group.
 
 See [sync-snipeit-intune-primary-users.md](sync-snipeit-intune-primary-users.md)
 for app permissions, setup, bulk safeguards, reports, and rollback guidance.
+
+## sync-google-users-to-snipeit/
+
+Dry-run-first sync of Google Workspace users from the Cadets OU (and all
+sub-OUs) into Snipe-IT user accounts. Maps Employee ID → `employee_num`,
+OU grade level → department, and creates users with random passwords and
+login disabled.
+
+```bash
+cd sync-google-users-to-snipeit
+./sync_google_users_to_snipeit.sh                  # dry-run
+./sync_google_users_to_snipeit.sh --apply           # live
+./sync_google_users_to_snipeit.sh --limit 5         # test first 5
+```
+
+See [sync-google-users-to-snipeit/README.md](sync-google-users-to-snipeit/README.md) for full setup.

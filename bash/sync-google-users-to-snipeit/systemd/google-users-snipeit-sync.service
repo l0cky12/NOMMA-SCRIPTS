@@ -1,0 +1,19 @@
+[Unit]
+Description=Google Workspace → Snipe-IT user sync
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=liam
+Group=liam
+WorkingDirectory=/home/liam/NOMMA-SCRIPTS/bash/sync-google-users-to-snipeit
+ExecStart=/home/liam/NOMMA-SCRIPTS/bash/sync-google-users-to-snipeit/sync_google_users_to_snipeit.sh --apply
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+
+[Install]
+WantedBy=multi-user.target
