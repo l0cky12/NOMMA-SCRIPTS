@@ -61,68 +61,95 @@ assert_contains 'suspend > move:/Inactive > rename > add-alias > set-password > 
 [[ ! -s "$MOCK_STATE_DIR/actions.log" ]] || fail 'dry run invoked mutation wrapper'
 pass=$((pass + 1)); printf 'PASS 2: dry-run safeguards\n'
 
-# 3. Apply requires apply flag and exact plan hash.
+# 3. Every dry-run produces complete protected report and restoration manifest.
+setup_mock dry-artifacts
+run_tool --csv "$work/dry-artifacts/input.csv" >"$work/dry-artifacts/out"
+report="$REPORT_DIR/offboarding-report.txt"
+manifest="$REPORT_DIR/restoration-manifest.json"
+assert_contains 'mode=dry-run' "$report"
+assert_contains 'tool_version=' "$report"
+assert_contains 'plan_sha256=' "$report"
+assert_contains 'entry=user@nomma.net' "$report"
+assert_contains 'google=planned' "$report"
+assert_contains 'snipeit=planned' "$report"
+assert_contains 'totals=processed:1' "$report"
+assert_contains '"mode": "dry-run"' "$manifest"
+assert_contains '"tool_version":' "$manifest"
+assert_contains '"plan_sha256":' "$manifest"
+assert_contains '"original_google_suspended": "false"' "$manifest"
+assert_contains '"prior_snipeit_active": "true"' "$manifest"
+assert_not_contains 'password' "$manifest"
+[[ "$(stat -c '%a' "$report")" == 600 ]] || fail 'report permissions are not 600'
+[[ "$(stat -c '%a' "$manifest")" == 600 ]] || fail 'manifest permissions are not 600'
+pass=$((pass + 1)); printf 'PASS 3: dry-run artifacts\n'
+
+# 4. Apply requires apply flag and exact plan hash.
 setup_mock approval
 hash="$(plan_hash "$work/approval/input.csv")"
 run_expect_fail run_tool --csv "$work/approval/input.csv" --confirm-plan-hash "$hash"
 assert_contains 'requires --apply' "$work/err"
 run_expect_fail run_tool --csv "$work/approval/input.csv" --apply --confirm-plan-hash bad
 assert_contains 'does not match' "$work/err"
-pass=$((pass + 1)); printf 'PASS 3: apply approval\n'
+pass=$((pass + 1)); printf 'PASS 4: apply approval\n'
 
-# 4. Correct Google action order.
+# 5. Correct Google action order.
 setup_mock order
 hash="$(plan_hash "$work/order/input.csv")"
 run_tool --csv "$work/order/input.csv" --apply --confirm-plan-hash "$hash" >"$work/order/out"
 expected=$'suspend:user@nomma.net\nmove:user@nomma.net:/Inactive\nrename:user@nomma.net:inactiveuser@nomma.net\nalias:inactiveuser@nomma.net:user@nomma.net\npassword:inactiveuser@nomma.net\nverify-google:inactiveuser@nomma.net'
 [[ "$(head -n 6 "$MOCK_STATE_DIR/actions.log")" == "$expected" ]] || fail 'Google action order incorrect'
-pass=$((pass + 1)); printf 'PASS 4: Google action order\n'
+pass=$((pass + 1)); printf 'PASS 5: Google action order\n'
 
-# 5. Snipe-IT follows Google verification only.
+# 6. Snipe-IT follows Google verification only.
 setup_mock sequencing
 hash="$(plan_hash "$work/sequencing/input.csv")"
 run_tool --csv "$work/sequencing/input.csv" --apply --confirm-plan-hash "$hash" >/dev/null
 [[ "$(tail -n 2 "$MOCK_STATE_DIR/actions.log")" == $'soft-deactivate-snipeit:user@nomma.net\nverify-snipeit:user@nomma.net' ]] || fail 'Snipe-IT ordering incorrect'
-pass=$((pass + 1)); printf 'PASS 5: Snipe-IT sequencing\n'
+pass=$((pass + 1)); printf 'PASS 6: Snipe-IT sequencing\n'
 
-# 6. Google failure blocks Snipe-IT and records failure report.
+# 7. Google failure blocks Snipe-IT and records failure report.
 setup_mock gamfail
 hash="$(plan_hash "$work/gamfail/input.csv")"
 set +e; MOCK_GAM_FAIL_ACTION=move run_tool --csv "$work/gamfail/input.csv" --apply --confirm-plan-hash "$hash" >"$work/gamfail/out" 2>"$work/gamfail/err"; status=$?; set -e
 assert_status "$status" 2
 assert_not_contains 'soft-deactivate-snipeit' "$MOCK_STATE_DIR/actions.log"
 assert_contains 'failed' "$REPORT_DIR/offboarding-report.txt"
-pass=$((pass + 1)); printf 'PASS 6: Google failure isolation\n'
+pass=$((pass + 1)); printf 'PASS 7: Google failure isolation\n'
 
-# 7. Snipe soft-deactivation failure is reported and non-destructive.
+# 8. Snipe soft-deactivation failure is reported and non-destructive.
 setup_mock snipefail
 hash="$(plan_hash "$work/snipefail/input.csv")"
 set +e; MOCK_SNIPE_FAIL=true run_tool --csv "$work/snipefail/input.csv" --apply --confirm-plan-hash "$hash" >/dev/null; status=$?; set -e
 assert_status "$status" 2
 assert_contains 'snipeit-failed' "$REPORT_DIR/offboarding-report.txt"
 assert_not_contains 'delete' "$MOCK_STATE_DIR/actions.log"
-pass=$((pass + 1)); printf 'PASS 7: Snipe-IT failure reporting\n'
+pass=$((pass + 1)); printf 'PASS 8: Snipe-IT failure reporting\n'
 
-# 8. Passwords and mock secret values never appear in outputs or artifacts.
+# 9. Passwords and mock secret values never appear in outputs or artifacts.
 setup_mock secret
 hash="$(plan_hash "$work/secret/input.csv")"
 MOCK_SECRET='mock-secret-value' run_tool --csv "$work/secret/input.csv" --apply --confirm-plan-hash "$hash" >"$work/secret/out" 2>"$work/secret/err"
 assert_not_contains 'mock-secret-value' "$work/secret/out"
 assert_not_contains 'mock-secret-value' "$REPORT_DIR/offboarding-report.txt"
 assert_not_contains 'password=' "$REPORT_DIR/offboarding-report.txt"
-pass=$((pass + 1)); printf 'PASS 8: secret redaction\n'
+pass=$((pass + 1)); printf 'PASS 9: secret redaction\n'
 
-# 9. Already-offboarded state is idempotent; collision is blocked.
+# 10. Already-offboarded Google state still requires active Snipe-IT deactivation.
 setup_mock idempotent
+printf 'user@nomma.net|true\nalready@nomma.net|true\ncollision@nomma.net|true\n' >"$MOCK_STATE_DIR/snipe-users.tsv"
 printf 'email\nalready@nomma.net\n' >"$work/idempotent/already.csv"
-run_tool --csv "$work/idempotent/already.csv" >"$work/idempotent/out"
-assert_contains 'already-offboarded' "$work/idempotent/out"
+hash="$(plan_hash "$work/idempotent/already.csv")"
+run_tool --csv "$work/idempotent/already.csv" --apply --confirm-plan-hash "$hash" >"$work/idempotent/out"
+assert_contains 'google=verified' "$REPORT_DIR/offboarding-report.txt"
+assert_contains 'snipeit=soft-deactivated' "$REPORT_DIR/offboarding-report.txt"
+assert_contains 'soft-deactivate-snipeit:already@nomma.net' "$MOCK_STATE_DIR/actions.log"
+assert_contains 'already@nomma.net|false' "$MOCK_STATE_DIR/snipe-users.tsv"
 printf 'email\ncollision@nomma.net\n' >"$work/idempotent/collision.csv"
 run_expect_fail run_tool --csv "$work/idempotent/collision.csv"
 assert_contains 'collision' "$work/err"
-pass=$((pass + 1)); printf 'PASS 9: idempotency and collision\n'
+pass=$((pass + 1)); printf 'PASS 10: Google/Snipe mismatch and collision\n'
 
-# 10. Restoration manifest records non-secret minimum state only.
+# 11. Restoration manifest records non-secret minimum state only.
 setup_mock manifest
 hash="$(plan_hash "$work/manifest/input.csv")"
 run_tool --csv "$work/manifest/input.csv" --apply --confirm-plan-hash "$hash" >/dev/null
@@ -134,5 +161,5 @@ assert_contains 'restoration_requires_separate_approval' "$manifest"
 assert_not_contains 'password' "$manifest"
 assert_not_contains 'token' "$manifest"
 [[ "$(stat -c '%a' "$manifest")" == 600 ]] || fail 'manifest permissions are not 600'
-pass=$((pass + 1)); printf 'PASS 10: restoration manifest\n'
+pass=$((pass + 1)); printf 'PASS 11: restoration manifest\n'
 printf 'PASS: %s scenarios\n' "$pass"

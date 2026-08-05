@@ -51,11 +51,15 @@ Test-only fault injection is supported through `MOCK_GAM_FAIL_ACTION`,
 adapter settings. `REPORT_DIR` optionally sets an output directory; otherwise
 reports go under `bash/reports/offboarding`.
 
-Every apply writes a human-readable `offboarding-report.txt` and a mode-600
-`restoration-manifest.json`. The manifest has only minimum non-secret restoration
-state: original/new addresses, alias relationship, prior Google OU and Snipe-IT
-state, action timestamps, plan hash, and a separate-approval marker. Restoration
-is never performed automatically and must be a separately reviewed operation.
+Every valid run, including dry-run, writes protected mode-600 human-readable
+`offboarding-report.txt`, machine-readable `offboarding-report.json`, and
+`restoration-manifest.json` files. The reports record the mode, timestamp, tool
+version, plan hash, each resolved address/action/outcome, verification or skip
+status, redacted errors, and aggregate totals. The manifest has only minimum
+non-secret restoration state: original/new addresses, alias relationship, prior
+Google state and OU, Snipe-IT state, action timestamps, plan hash, and a
+separate-approval marker. Restoration is never performed automatically and must
+be a separately reviewed operation.
 
 ## Validation
 
