@@ -3,7 +3,43 @@
 > Copy and paste everything below into a coding agent. This is a **build-only, mocks-only** request: the agent must implement and test the tool locally but must not contact Google Workspace, Snipe-IT, or any other live service.
 
 ```text
-Build a safety-first Bash offboarding tool that coordinates Google Workspace and Snipe-IT. Work only in the local repository and use mock commands/fixtures for all integrations. Do not contact live Google Workspace, Snipe-IT, SMTP, secrets managers, or any external API. Do not request, store, print, commit, or embed real credentials, API tokens, service-account keys, real personal email addresses, or production URLs.
+Build a safety-first Bash offboarding tool that coordinates Google Workspace and Snipe-IT.
+
+## Repository, placement, and Git delivery requirements
+
+Work in the existing local clone of the `NOMMA-SCRIPTS` repository. Before editing anything:
+
+1. Enter the existing repository clone and verify its repository root.
+2. Review and report the current Git state and configured remotes, including:
+   - `git status --short`
+   - `git branch --show-current`
+   - `git remote -v`
+3. Confirm that the configured `origin` remote is the intended GitHub remote. Do not change Git remotes, Git credentials, or Git configuration.
+4. Create and switch to a new descriptive topic branch, such as `feat/google-workspace-snipeit-offboarding`. Do not work directly on the default branch.
+
+Implement the executable tool at exactly:
+
+```text
+bash/offboard-google-snipeit-users.sh
+```
+
+Keep all implementation, tests, fixtures, and documentation changes scoped to this offboarding tool and its support files within the existing repository conventions. Do not create a separate repository, place the primary tool outside `bash/`, or modify unrelated files.
+
+After implementation and successful local mock-only validation:
+
+1. Review the final scoped diff and ensure no credentials, secrets, or unrelated changes are included.
+2. Commit the scoped implementation on the topic branch with a clear commit message.
+3. Push that topic branch to the configured GitHub `origin` remote using an upstream-setting push, for example:
+   ```bash
+   git push -u origin <branch-name>
+   ```
+4. Report the branch name, resulting commit SHA, complete changed-file list, exact validation commands and results, and the actual `git push` command/output.
+
+Do not open a pull request unless explicitly asked. Do not force-push. Do not push to the default branch. Do not use, request, print, store, commit, or modify GitHub credentials; rely only on the already configured local Git authentication if available. If the push fails because authentication, remote configuration, permissions, or network access is unavailable, do not bypass the failure or use alternate credentials. Report the exact failure and leave the completed local branch and commit intact.
+
+## Safety boundary
+
+Work only in the local repository and use mock commands/fixtures for all integrations. Do not contact live Google Workspace, Snipe-IT, SMTP, secrets managers, or any external API. Do not request, store, print, commit, or embed real credentials, API tokens, service-account keys, real personal email addresses, or production URLs.
 
 ## Deliverable
 
@@ -51,10 +87,10 @@ Document a clear CLI such as:
 
 ```bash
 # Default: dry run using mocks; prints the plan hash.
-./offboard-google-snipeit-users.sh --csv offboarding.csv
+./bash/offboard-google-snipeit-users.sh --csv offboarding.csv
 
 # Apply only after reviewing the generated plan and explicitly confirming its hash.
-./offboard-google-snipeit-users.sh --csv offboarding.csv --apply --confirm-plan-hash '<sha256>'
+./bash/offboard-google-snipeit-users.sh --csv offboarding.csv --apply --confirm-plan-hash '<sha256>'
 ```
 
 Use a CSV format such as:
@@ -96,5 +132,15 @@ Provide automated Bash tests (for example using Bats or a portable test harness)
 
 Run the test suite locally with mocks and report the actual command and result. Add concise documentation describing setup, mock-only test mode, CLI usage, safeguards, report locations, restore-manifest handling, and explicitly how an operator would later configure adapters for a separately approved production deployment. Do not implement or perform live production configuration, live authentication, live API calls, or any account changes.
 
-Before finishing, provide a short implementation summary, list of changed files, exact test commands/results, and any assumptions or remaining production-readiness decisions.
+Before finishing, provide:
+
+1. A short implementation summary.
+2. The topic branch name.
+3. The final commit SHA.
+4. A complete list of changed files.
+5. Exact local validation/test commands and their results.
+6. The exact `git push` command and its actual output.
+7. Any assumptions, remaining production-readiness decisions, or Git push blockers.
+
+Do not claim live service validation, production readiness, or successful GitHub delivery unless the corresponding mock-only test output or actual `git push` output proves it.
 ```
