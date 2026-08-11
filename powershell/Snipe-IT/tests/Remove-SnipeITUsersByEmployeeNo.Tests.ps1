@@ -144,6 +144,35 @@ Describe 'Remove-SnipeITUsersByEmployeeNo' {
         { Read-SnipeITEmployeeNoCsv -CsvPath $emptyPath } | Should -Throw '*zero data rows*'
     }
 
+    It 'parses the first field from an Excel row with trailing empty columns' {
+        $csvPath = Join-Path $TestDrive 'excel-trailing-columns.csv'
+        '0016171,,,,,,,,' | Set-Content -LiteralPath $csvPath -Encoding utf8NoBOM
+
+        $csv = Read-SnipeITEmployeeNoCsv -CsvPath $csvPath
+
+        $csv.EmployeeNos | Should -Be @('0016171')
+    }
+
+    It 'strips surrounding quotes from a single-column Employee No' {
+        $csvPath = Join-Path $TestDrive 'quoted.csv'
+        '"0023456"' | Set-Content -LiteralPath $csvPath -Encoding utf8NoBOM
+
+        $csv = Read-SnipeITEmployeeNoCsv -CsvPath $csvPath
+
+        $csv.EmployeeNos | Should -Be @('0023456')
+    }
+
+    It 'parses mixed real-world CSV lines in order without empty values' {
+        $csvPath = Join-Path $TestDrive 'mixed-real-world.csv'
+        @('0016171,,,,,,,,', '', '"0017225"', '3015958,,,') |
+            Set-Content -LiteralPath $csvPath -Encoding utf8NoBOM
+
+        $csv = Read-SnipeITEmployeeNoCsv -CsvPath $csvPath
+
+        $csv.EmployeeNos | Should -Be @('0016171', '0017225', '3015958')
+        $csv.EmployeeNos | Should -HaveCount 3
+    }
+
     It 'reports duplicate Employee Nos and acts on each unique value once' {
         $csvPath = Join-Path $TestDrive 'duplicates.csv'
         "E1001`nE1001`nE2002`nE1001" | Set-Content -LiteralPath $csvPath -Encoding utf8NoBOM
@@ -175,6 +204,58 @@ Describe 'Remove-SnipeITUsersByEmployeeNo' {
         $run.Results[0].Detail | Should -Match 'User could not be deleted'
         $run.ExitCode | Should -Be 1
         @($script:requests | Where-Object Method -eq 'DELETE') | Should -HaveCount 1
+    }
+
+    It 'retries one lookup 429 and returns the successful matched result' {
+        $csvPath = Join-Path $TestDrive 'retry-once.csv'
+        'E4291' | Set-Content -LiteralPath $csvPath -Encoding utf8NoBOM
+        $script:retryLookupCalls = 0
+        $retryMock = {
+            param($Method, $Uri, $Headers)
+
+            $script:retryLookupCalls++
+            if ($script:retryLookupCalls -eq 1) {
+                return [pscustomobject]@{
+                    StatusCode = 429
+                    Body       = [pscustomobject]@{ retryAfter = 0 }
+                }
+            }
+
+            return [pscustomobject]@{
+                StatusCode = 200
+                Body       = New-TestLookupResponse -EmployeeNo E4291 -Id 4291
+            }
+        }
+
+        $run = Invoke-SnipeITUserRemoval -CsvPath $csvPath -BaseUrl 'https://snipe.test' `
+            -AuthToken 'offline-token' -HttpRequest $retryMock -MaxRetries 2
+
+        $run.Results[0].Result | Should -Be 'planned'
+        $run.Results[0].Result | Should -Not -Be 'error'
+        $script:retryLookupCalls | Should -Be 2
+    }
+
+    It 'caps persistent lookup 429 retries and returns an error' {
+        $csvPath = Join-Path $TestDrive 'retry-exhausted.csv'
+        'E4299' | Set-Content -LiteralPath $csvPath -Encoding utf8NoBOM
+        $script:retryLookupCalls = 0
+        $persistent429Mock = {
+            param($Method, $Uri, $Headers)
+
+            $script:retryLookupCalls++
+            return [pscustomobject]@{
+                StatusCode = 429
+                Body       = [pscustomobject]@{ retry_after = 0 }
+            }
+        }
+
+        $run = Invoke-SnipeITUserRemoval -CsvPath $csvPath -BaseUrl 'https://snipe.test' `
+            -AuthToken 'offline-token' -HttpRequest $persistent429Mock -MaxRetries 2
+
+        $run.Results[0].Result | Should -Be 'error'
+        $run.Results[0].Detail | Should -Match 'HTTP 429'
+        $run.ExitCode | Should -Be 1
+        $script:retryLookupCalls | Should -Be 3
     }
 
     It 'never renders the AuthToken when a request errors' {

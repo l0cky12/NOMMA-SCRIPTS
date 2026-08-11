@@ -27,7 +27,13 @@ param(
     [ValidateRange(0, 2147483647)]
     [int]$ConfirmRange = 0,
 
-    [scriptblock]$HttpRequest
+    [scriptblock]$HttpRequest,
+
+    [ValidateRange(0, 30)]
+    [double]$RequestDelaySeconds = 0.25,
+
+    [ValidateRange(0, 10)]
+    [int]$MaxRetries = 5
 )
 
 Set-StrictMode -Version Latest
@@ -94,7 +100,10 @@ function Read-SnipeITEmployeeNoCsv {
 
     $values = [System.Collections.Generic.List[string]]::new()
     foreach ($line in @(Get-Content -LiteralPath $CsvPath -ErrorAction Stop)) {
-        $value = ([string]$line).TrimEnd("`r").Trim()
+        $value = (([string]$line).TrimEnd("`r") -split ',', 2)[0].Trim()
+        if ($value.Length -ge 2 -and $value.StartsWith('"') -and $value.EndsWith('"')) {
+            $value = $value.Substring(1, $value.Length - 2).Trim()
+        }
         if (-not [string]::IsNullOrWhiteSpace($value)) {
             $values.Add($value)
         }
@@ -158,6 +167,7 @@ function Invoke-SnipeITHttpRequest {
         [string]$AuthToken
     )
 
+    $responseHeaders = $null
     try {
         if ($null -ne $HttpRequest) {
             $rawResponse = & $HttpRequest -Method $Method -Uri $Uri -Headers $Headers
@@ -178,13 +188,21 @@ function Invoke-SnipeITHttpRequest {
                 elseif ($null -ne $contentProperty) {
                     $body = $contentProperty.Value
                 }
+
+                $headersProperty = $rawResponse.PSObject.Properties['Headers']
+                if ($null -ne $headersProperty) {
+                    $responseHeaders = $headersProperty.Value
+                }
             }
         }
         else {
             $snipeStatusCode = 0
+            $snipeResponseHeaders = $null
             $body = Invoke-RestMethod -Method $Method -Uri $Uri -Headers $Headers `
-                -StatusCodeVariable snipeStatusCode -ErrorAction Stop
+                -StatusCodeVariable snipeStatusCode -ResponseHeadersVariable snipeResponseHeaders `
+                -ErrorAction Stop
             $statusCode = [int]$snipeStatusCode
+            $responseHeaders = $snipeResponseHeaders
         }
 
         if ($body -is [string] -and -not [string]::IsNullOrWhiteSpace($body)) {
@@ -214,6 +232,7 @@ function Invoke-SnipeITHttpRequest {
             Succeeded  = $succeeded
             StatusCode = $statusCode
             Body       = $body
+            Headers    = $responseHeaders
             Error      = $errorText
         }
     }
@@ -225,6 +244,11 @@ function Invoke-SnipeITHttpRequest {
             if ($null -ne $statusProperty -and $null -ne $statusProperty.Value) {
                 $statusCode = [int]$statusProperty.Value
             }
+
+            $headersProperty = $responseProperty.Value.PSObject.Properties['Headers']
+            if ($null -ne $headersProperty) {
+                $responseHeaders = $headersProperty.Value
+            }
         }
 
         $body = if (-not [string]::IsNullOrWhiteSpace($_.ErrorDetails.Message)) {
@@ -232,6 +256,14 @@ function Invoke-SnipeITHttpRequest {
         }
         else {
             $_.Exception.Message
+        }
+        if ($body -is [string] -and -not [string]::IsNullOrWhiteSpace($body)) {
+            try {
+                $body = $body | ConvertFrom-Json -ErrorAction Stop
+            }
+            catch {
+                # A non-JSON response body is preserved for redacted error reporting.
+            }
         }
         $redactedBody = Protect-SnipeITText -InputObject $body -Token $AuthToken
         $errorText = if ($statusCode -gt 0) {
@@ -244,9 +276,122 @@ function Invoke-SnipeITHttpRequest {
         return [pscustomobject]@{
             Succeeded  = $false
             StatusCode = $statusCode
-            Body       = $null
+            Body       = $body
+            Headers    = $responseHeaders
             Error      = $errorText
         }
+    }
+}
+
+function Get-SnipeITRetryDelaySeconds {
+    [CmdletBinding()]
+    [OutputType([double])]
+    param(
+        [Parameter(Mandatory)]
+        [pscustomobject]$Response,
+
+        [Parameter(Mandatory)]
+        [ValidateRange(0, 10)]
+        [int]$Attempt
+    )
+
+    foreach ($propertyName in @('retryAfter', 'retry_after')) {
+        if ($null -ne $Response.Body) {
+            $property = $Response.Body.PSObject.Properties[$propertyName]
+            if ($null -ne $property -and $null -ne $property.Value) {
+                try {
+                    $seconds = [Convert]::ToDouble($property.Value, [System.Globalization.CultureInfo]::InvariantCulture)
+                    if ($seconds -ge 0) {
+                        return $seconds
+                    }
+                }
+                catch {
+                    # Fall through to the next retry-delay source.
+                }
+            }
+        }
+    }
+
+    if ($null -ne $Response.Headers) {
+        $retryAfter = $null
+        if ($Response.Headers -is [System.Collections.IDictionary]) {
+            foreach ($key in $Response.Headers.Keys) {
+                if ([string]::Equals([string]$key, 'Retry-After', [System.StringComparison]::OrdinalIgnoreCase)) {
+                    $retryAfter = $Response.Headers[$key]
+                    break
+                }
+            }
+        }
+        else {
+            $property = $Response.Headers.PSObject.Properties['Retry-After']
+            if ($null -ne $property) {
+                $retryAfter = $property.Value
+            }
+            else {
+                try {
+                    $retryAfter = @($Response.Headers.GetValues('Retry-After'))[0]
+                }
+                catch {
+                    # The response-header type does not expose Retry-After in this form.
+                }
+            }
+        }
+
+        if ($null -ne $retryAfter) {
+            try {
+                $seconds = [Convert]::ToDouble(@($retryAfter)[0], [System.Globalization.CultureInfo]::InvariantCulture)
+                if ($seconds -ge 0) {
+                    return $seconds
+                }
+            }
+            catch {
+                # Fall through to exponential backoff.
+            }
+        }
+    }
+
+    return [Math]::Pow(2, $Attempt)
+}
+
+function Invoke-SnipeITHttpRequestWithRetry {
+    [CmdletBinding()]
+    [OutputType([pscustomobject])]
+    param(
+        [Parameter(Mandatory)]
+        [ValidateSet('GET', 'DELETE')]
+        [string]$Method,
+
+        [Parameter(Mandatory)]
+        [string]$Uri,
+
+        [Parameter(Mandatory)]
+        [hashtable]$Headers,
+
+        [AllowNull()]
+        [scriptblock]$HttpRequest,
+
+        [Parameter(Mandatory)]
+        [string]$AuthToken,
+
+        [ValidateRange(0, 10)]
+        [int]$MaxRetries = 5
+    )
+
+    $attempt = 0
+    while ($true) {
+        $response = Invoke-SnipeITHttpRequest -Method $Method -Uri $Uri -Headers $Headers `
+            -HttpRequest $HttpRequest -AuthToken $AuthToken
+        if ($response.Succeeded -or $response.StatusCode -ne 429 -or $attempt -ge $MaxRetries) {
+            return $response
+        }
+
+        $delaySeconds = Get-SnipeITRetryDelaySeconds -Response $response -Attempt $attempt
+        $jitter = (Get-Random -Minimum 500 -Maximum 1501) / 1000.0
+        $sleepMilliseconds = [int][Math]::Ceiling($delaySeconds * $jitter * 1000)
+        if ($sleepMilliseconds -gt 0) {
+            Start-Sleep -Milliseconds $sleepMilliseconds
+        }
+        $attempt++
     }
 }
 
@@ -301,13 +446,16 @@ function Get-SnipeITUserMatch {
         [scriptblock]$HttpRequest,
 
         [Parameter(Mandatory)]
-        [string]$AuthToken
+        [string]$AuthToken,
+
+        [ValidateRange(0, 10)]
+        [int]$MaxRetries = 5
     )
 
     $encodedEmployeeNo = [uri]::EscapeDataString($EmployeeNo)
     $uri = "$BaseUrl/api/v1/users?employee_num=$encodedEmployeeNo&limit=5"
-    $response = Invoke-SnipeITHttpRequest -Method GET -Uri $uri -Headers $Headers `
-        -HttpRequest $HttpRequest -AuthToken $AuthToken
+    $response = Invoke-SnipeITHttpRequestWithRetry -Method GET -Uri $uri -Headers $Headers `
+        -HttpRequest $HttpRequest -AuthToken $AuthToken -MaxRetries $MaxRetries
 
     if (-not $response.Succeeded) {
         return [pscustomobject]@{
@@ -420,7 +568,10 @@ function Remove-SnipeITUserByEmployeeNo {
         [scriptblock]$HttpRequest,
 
         [Parameter(Mandatory)]
-        [string]$AuthToken
+        [string]$AuthToken,
+
+        [ValidateRange(0, 10)]
+        [int]$MaxRetries = 5
     )
 
     if ($Match.MatchState -eq 'not_found') {
@@ -449,8 +600,8 @@ function Remove-SnipeITUserByEmployeeNo {
 
     $encodedUserId = [uri]::EscapeDataString([string]$Match.UserId)
     $uri = "$BaseUrl/api/v1/users/$encodedUserId"
-    $response = Invoke-SnipeITHttpRequest -Method DELETE -Uri $uri -Headers $Headers `
-        -HttpRequest $HttpRequest -AuthToken $AuthToken
+    $response = Invoke-SnipeITHttpRequestWithRetry -Method DELETE -Uri $uri -Headers $Headers `
+        -HttpRequest $HttpRequest -AuthToken $AuthToken -MaxRetries $MaxRetries
 
     if (-not $response.Succeeded) {
         return New-SnipeITResult -EmployeeNo $Match.EmployeeNo -Username $Match.Username `
@@ -488,7 +639,13 @@ function Invoke-SnipeITUserRemoval {
         [int]$ConfirmRange = 0,
 
         [AllowNull()]
-        [scriptblock]$HttpRequest
+        [scriptblock]$HttpRequest,
+
+        [ValidateRange(0, 30)]
+        [double]$RequestDelaySeconds = 0.25,
+
+        [ValidateRange(0, 10)]
+        [int]$MaxRetries = 5
     )
 
     $normalizedBaseUrl = $BaseUrl.Trim().TrimEnd('/')
@@ -507,10 +664,15 @@ function Invoke-SnipeITUserRemoval {
     }
 
     $matches = [System.Collections.Generic.List[object]]::new()
+    $lookupIndex = 0
     foreach ($employeeNo in $csv.EmployeeNos) {
+        if ($lookupIndex -gt 0 -and $null -eq $HttpRequest -and $RequestDelaySeconds -gt 0) {
+            Start-Sleep -Milliseconds ([int][Math]::Ceiling($RequestDelaySeconds * 1000))
+        }
         $match = Get-SnipeITUserMatch -EmployeeNo $employeeNo -BaseUrl $normalizedBaseUrl `
-            -Headers $headers -HttpRequest $HttpRequest -AuthToken $AuthToken
+            -Headers $headers -HttpRequest $HttpRequest -AuthToken $AuthToken -MaxRetries $MaxRetries
         $matches.Add($match)
+        $lookupIndex++
         if ($match.MatchCount -gt 1) {
             Write-Warning "Employee No '$employeeNo' returned $($match.MatchCount) matches; the first user id will be targeted."
         }
@@ -531,7 +693,7 @@ function Invoke-SnipeITUserRemoval {
     foreach ($match in $matches) {
         $result = Remove-SnipeITUserByEmployeeNo -Match $match -BaseUrl $normalizedBaseUrl `
             -Headers $headers -Apply ([bool]$Apply) -DeletionApproved $deletionApproved `
-            -HttpRequest $HttpRequest -AuthToken $AuthToken
+            -HttpRequest $HttpRequest -AuthToken $AuthToken -MaxRetries $MaxRetries
         $results.Add($result)
     }
 
@@ -596,7 +758,8 @@ function Write-SnipeITRunReport {
 if ($MyInvocation.InvocationName -ne '.') {
     try {
         $run = Invoke-SnipeITUserRemoval -CsvPath $CsvPath -BaseUrl $BaseUrl -AuthToken $AuthToken `
-            -Apply:$Apply -ConfirmRange $ConfirmRange -HttpRequest $HttpRequest
+            -Apply:$Apply -ConfirmRange $ConfirmRange -RequestDelaySeconds $RequestDelaySeconds `
+            -MaxRetries $MaxRetries -HttpRequest $HttpRequest
         Write-SnipeITRunReport -Run $run -AuthToken $AuthToken
         exit $run.ExitCode
     }
