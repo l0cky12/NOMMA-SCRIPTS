@@ -71,3 +71,8 @@ bash/sync-google-users-to-snipeit/.env
 !bash/sync-google-users-to-snipeit/.env.example
 bash/sync-google-users-to-snipeit/config/grade-department-mapping.json
 !bash/sync-google-users-to-snipeit/config/grade-department-mapping.example.json
+
+# ── Google Admin (Python/PS) credentials — never commit ────────────
+powershell/Google-Admin/*client*secret*.json
+powershell/Google-Admin/*credentials*.json
+powershell/Google-Admin/reports/
