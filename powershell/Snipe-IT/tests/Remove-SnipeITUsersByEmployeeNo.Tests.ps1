@@ -32,6 +32,86 @@ BeforeAll {
             )
         }
     }
+
+    function Invoke-TestScriptProcess {
+        param(
+            [Parameter(Mandatory)]
+            [string]$CsvPath,
+
+            [Parameter(Mandatory)]
+            [string]$CapturePath,
+
+            [AllowEmptyString()]
+            [string]$BaseUrl,
+
+            [AllowEmptyString()]
+            [string]$AuthToken
+        )
+
+        $harnessPath = Join-Path $TestDrive 'invoke-snipeit-script.ps1'
+        @'
+param(
+    [string]$TargetScript,
+    [string]$CsvPath,
+    [string]$CapturePath,
+    [string]$BaseUrl,
+    [string]$AuthToken
+)
+
+$httpMock = {
+    param($Method, $Uri, $Headers)
+
+    [pscustomobject]@{
+        Method        = $Method
+        Uri           = $Uri
+        Authorization = $Headers.Authorization
+    } | ConvertTo-Json -Compress | Set-Content -LiteralPath $CapturePath -Encoding utf8NoBOM
+
+    return [pscustomobject]@{
+        total = 0
+        rows  = @()
+    }
+}
+
+$invokeParameters = @{
+    CsvPath     = $CsvPath
+    HttpRequest = $httpMock
+}
+if ($PSBoundParameters.ContainsKey('BaseUrl')) {
+    $invokeParameters.BaseUrl = $BaseUrl
+}
+if ($PSBoundParameters.ContainsKey('AuthToken')) {
+    $invokeParameters.AuthToken = $AuthToken
+}
+
+& $TargetScript @invokeParameters
+'@ | Set-Content -LiteralPath $harnessPath -Encoding utf8NoBOM
+
+        $arguments = @(
+            '-NoProfile'
+            '-NonInteractive'
+            '-File'
+            $harnessPath
+            '-TargetScript'
+            $scriptPath
+            '-CsvPath'
+            $CsvPath
+            '-CapturePath'
+            $CapturePath
+        )
+        if ($PSBoundParameters.ContainsKey('BaseUrl')) {
+            $arguments += @('-BaseUrl', $BaseUrl)
+        }
+        if ($PSBoundParameters.ContainsKey('AuthToken')) {
+            $arguments += @('-AuthToken', $AuthToken)
+        }
+
+        $output = & (Get-Process -Id $PID).Path @arguments 2>&1
+        return [pscustomobject]@{
+            ExitCode = $LASTEXITCODE
+            Output   = $output | Out-String
+        }
+    }
 }
 
 Describe 'Remove-SnipeITUsersByEmployeeNo' {
@@ -276,5 +356,119 @@ Describe 'Remove-SnipeITUsersByEmployeeNo' {
         $rendered | Should -Not -Match ([regex]::Escape($token))
         $rendered | Should -Match 'HTTP 401'
         $rendered | Should -Match '\[REDACTED\]'
+    }
+}
+
+Describe 'Remove-SnipeITUsersByEmployeeNo environment defaults' {
+    BeforeAll {
+        $script:hadOriginalSnipeITBaseUrl = Test-Path Env:SNIPEIT_BASE_URL
+        $script:hadOriginalSnipeITToken = Test-Path Env:SNIPEIT_TOKEN
+        $script:originalSnipeITBaseUrl = [Environment]::GetEnvironmentVariable('SNIPEIT_BASE_URL', 'Process')
+        $script:originalSnipeITToken = [Environment]::GetEnvironmentVariable('SNIPEIT_TOKEN', 'Process')
+        $script:testSnipeITBaseUrl = 'https://env.snipe.test'
+        $script:testSnipeITToken = "  env-offline-token  `n"
+        $env:SNIPEIT_BASE_URL = $script:testSnipeITBaseUrl
+        $env:SNIPEIT_TOKEN = $script:testSnipeITToken
+    }
+
+    AfterAll {
+        if ($script:hadOriginalSnipeITBaseUrl) {
+            [Environment]::SetEnvironmentVariable(
+                'SNIPEIT_BASE_URL', $script:originalSnipeITBaseUrl, 'Process'
+            )
+        }
+        else {
+            Remove-Item Env:SNIPEIT_BASE_URL -ErrorAction SilentlyContinue
+        }
+
+        if ($script:hadOriginalSnipeITToken) {
+            [Environment]::SetEnvironmentVariable(
+                'SNIPEIT_TOKEN', $script:originalSnipeITToken, 'Process'
+            )
+        }
+        else {
+            Remove-Item Env:SNIPEIT_TOKEN -ErrorAction SilentlyContinue
+        }
+    }
+
+    It 'uses SNIPEIT_BASE_URL and trims SNIPEIT_TOKEN when explicit values are omitted' {
+        $csvPath = Join-Path $TestDrive 'env-defaults.csv'
+        $capturePath = Join-Path $TestDrive 'env-defaults-request.json'
+        'E-ENV' | Set-Content -LiteralPath $csvPath -Encoding utf8NoBOM
+
+        $process = Invoke-TestScriptProcess -CsvPath $csvPath -CapturePath $capturePath
+        $request = Get-Content -LiteralPath $capturePath -Raw | ConvertFrom-Json
+
+        $process.ExitCode | Should -Be 0
+        $request.Uri | Should -Be 'https://env.snipe.test/api/v1/users?employee_num=E-ENV&limit=5'
+        $request.Authorization | Should -Be 'Bearer env-offline-token'
+    }
+
+    It 'prefers and trims explicit BaseUrl and AuthToken values over environment values' {
+        $csvPath = Join-Path $TestDrive 'explicit-values.csv'
+        $capturePath = Join-Path $TestDrive 'explicit-values-request.json'
+        'E-EXPLICIT' | Set-Content -LiteralPath $csvPath -Encoding utf8NoBOM
+
+        $process = Invoke-TestScriptProcess -CsvPath $csvPath -CapturePath $capturePath `
+            -BaseUrl ' https://x.example ' -AuthToken '  tok456  '
+        $request = Get-Content -LiteralPath $capturePath -Raw | ConvertFrom-Json
+
+        $process.ExitCode | Should -Be 0
+        $request.Uri | Should -Be 'https://x.example/api/v1/users?employee_num=E-EXPLICIT&limit=5'
+        $request.Authorization | Should -Be 'Bearer tok456'
+    }
+
+    It 'throws the friendly SNIPEIT_TOKEN error for an explicit whitespace-only AuthToken' {
+        $csvPath = Join-Path $TestDrive 'empty-explicit-token.csv'
+        $capturePath = Join-Path $TestDrive 'empty-explicit-token-request.json'
+        'E-EMPTY-TOKEN' | Set-Content -LiteralPath $csvPath -Encoding utf8NoBOM
+        Remove-Item Env:SNIPEIT_TOKEN -ErrorAction SilentlyContinue
+
+        try {
+            $process = Invoke-TestScriptProcess -CsvPath $csvPath -CapturePath $capturePath `
+                -BaseUrl 'https://explicit.snipe.test' -AuthToken '   '
+
+            $process.ExitCode | Should -Be 1
+            $process.Output | Should -Match 'AuthToken was not provided\. Pass -AuthToken or set SNIPEIT_TOKEN\.'
+            $process.Output | Should -Not -Match 'Cannot validate argument on parameter'
+        }
+        finally {
+            $env:SNIPEIT_TOKEN = $script:testSnipeITToken
+        }
+    }
+
+    It 'throws clear errors when BaseUrl or AuthToken has no parameter or environment value' {
+        $csvPath = Join-Path $TestDrive 'missing-environment.csv'
+        'E-MISSING' | Set-Content -LiteralPath $csvPath -Encoding utf8NoBOM
+        Remove-Item Env:SNIPEIT_BASE_URL -ErrorAction SilentlyContinue
+        Remove-Item Env:SNIPEIT_TOKEN -ErrorAction SilentlyContinue
+
+        try {
+            $baseUrlOutput = & (Get-Process -Id $PID).Path -NoProfile -NonInteractive -File $scriptPath `
+                -CsvPath $csvPath 2>&1 | Out-String
+            $baseUrlExitCode = $LASTEXITCODE
+
+            $env:SNIPEIT_BASE_URL = 'https://env.snipe.test'
+            $authTokenOutput = & (Get-Process -Id $PID).Path -NoProfile -NonInteractive -File $scriptPath `
+                -CsvPath $csvPath 2>&1 | Out-String
+            $authTokenExitCode = $LASTEXITCODE
+
+            $baseUrlExitCode | Should -Be 1
+            $baseUrlOutput | Should -Match 'BaseUrl was not provided\. Pass -BaseUrl or set SNIPEIT_BASE_URL\.'
+            $authTokenExitCode | Should -Be 1
+            $authTokenOutput | Should -Match 'AuthToken was not provided\. Pass -AuthToken or set SNIPEIT_TOKEN\.'
+        }
+        finally {
+            $env:SNIPEIT_BASE_URL = $script:testSnipeITBaseUrl
+            $env:SNIPEIT_TOKEN = $script:testSnipeITToken
+        }
+    }
+
+    It 'keeps CsvPath mandatory' {
+        $output = & (Get-Process -Id $PID).Path -NoProfile -NonInteractive -File $scriptPath 2>&1 | Out-String
+        $exitCode = $LASTEXITCODE
+
+        $exitCode | Should -Be 1
+        $output | Should -Match 'missing mandatory parameter.*CsvPath'
     }
 }

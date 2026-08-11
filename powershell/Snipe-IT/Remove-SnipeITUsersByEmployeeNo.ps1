@@ -6,7 +6,17 @@
 .DESCRIPTION
     Looks up Snipe-IT users by employee_num and reports the proposed changes.
     DryRun is the default; actual soft deletion requires -Apply. Users with
-    checked-out assets are always blocked from deletion.
+    checked-out assets are always blocked from deletion. BaseUrl and AuthToken
+    can be passed explicitly or read from SNIPEIT_BASE_URL and SNIPEIT_TOKEN.
+    Set those environment variables once to run with only -CsvPath.
+
+.EXAMPLE
+    $env:SNIPEIT_BASE_URL = 'https://snipeit.example.com'
+    $env:SNIPEIT_TOKEN = '<token>'
+    pwsh -File Remove-SnipeITUsersByEmployeeNo.ps1 -CsvPath <file>
+
+    Uses the saved SNIPEIT_BASE_URL and SNIPEIT_TOKEN values. The run remains
+    a DryRun unless -Apply is also supplied.
 #>
 [CmdletBinding()]
 param(
@@ -14,13 +24,9 @@ param(
     [ValidateNotNullOrEmpty()]
     [string]$CsvPath,
 
-    [Parameter(Mandatory)]
-    [ValidateNotNullOrEmpty()]
-    [string]$BaseUrl,
+    [string]$BaseUrl = $env:SNIPEIT_BASE_URL,
 
-    [Parameter(Mandatory)]
-    [ValidateNotNullOrEmpty()]
-    [string]$AuthToken,
+    [string]$AuthToken = $env:SNIPEIT_TOKEN,
 
     [switch]$Apply,
 
@@ -649,8 +655,12 @@ function Invoke-SnipeITUserRemoval {
     )
 
     $normalizedBaseUrl = $BaseUrl.Trim().TrimEnd('/')
+    $normalizedToken = $AuthToken.Trim()
     if ([string]::IsNullOrWhiteSpace($normalizedBaseUrl)) {
-        throw 'BaseUrl must not be empty.'
+        throw 'BaseUrl was not provided. Pass -BaseUrl or set SNIPEIT_BASE_URL.'
+    }
+    if ([string]::IsNullOrWhiteSpace($normalizedToken)) {
+        throw 'AuthToken was not provided. Pass -AuthToken or set SNIPEIT_TOKEN.'
     }
 
     $csv = Read-SnipeITEmployeeNoCsv -CsvPath $CsvPath
@@ -659,7 +669,7 @@ function Invoke-SnipeITUserRemoval {
     }
 
     $headers = @{
-        Authorization = "Bearer $AuthToken"
+        Authorization = "Bearer $normalizedToken"
         Accept        = 'application/json'
     }
 
@@ -670,7 +680,7 @@ function Invoke-SnipeITUserRemoval {
             Start-Sleep -Milliseconds ([int][Math]::Ceiling($RequestDelaySeconds * 1000))
         }
         $match = Get-SnipeITUserMatch -EmployeeNo $employeeNo -BaseUrl $normalizedBaseUrl `
-            -Headers $headers -HttpRequest $HttpRequest -AuthToken $AuthToken -MaxRetries $MaxRetries
+            -Headers $headers -HttpRequest $HttpRequest -AuthToken $normalizedToken -MaxRetries $MaxRetries
         $matches.Add($match)
         $lookupIndex++
         if ($match.MatchCount -gt 1) {
@@ -693,7 +703,7 @@ function Invoke-SnipeITUserRemoval {
     foreach ($match in $matches) {
         $result = Remove-SnipeITUserByEmployeeNo -Match $match -BaseUrl $normalizedBaseUrl `
             -Headers $headers -Apply ([bool]$Apply) -DeletionApproved $deletionApproved `
-            -HttpRequest $HttpRequest -AuthToken $AuthToken -MaxRetries $MaxRetries
+            -HttpRequest $HttpRequest -AuthToken $normalizedToken -MaxRetries $MaxRetries
         $results.Add($result)
     }
 
@@ -756,15 +766,24 @@ function Write-SnipeITRunReport {
 }
 
 if ($MyInvocation.InvocationName -ne '.') {
+    $normalizedToken = ''
     try {
-        $run = Invoke-SnipeITUserRemoval -CsvPath $CsvPath -BaseUrl $BaseUrl -AuthToken $AuthToken `
+        if ([string]::IsNullOrWhiteSpace($BaseUrl)) {
+            throw 'BaseUrl was not provided. Pass -BaseUrl or set SNIPEIT_BASE_URL.'
+        }
+        if ([string]::IsNullOrWhiteSpace($AuthToken)) {
+            throw 'AuthToken was not provided. Pass -AuthToken or set SNIPEIT_TOKEN.'
+        }
+        $normalizedToken = $AuthToken.Trim()
+
+        $run = Invoke-SnipeITUserRemoval -CsvPath $CsvPath -BaseUrl $BaseUrl -AuthToken $normalizedToken `
             -Apply:$Apply -ConfirmRange $ConfirmRange -RequestDelaySeconds $RequestDelaySeconds `
             -MaxRetries $MaxRetries -HttpRequest $HttpRequest
-        Write-SnipeITRunReport -Run $run -AuthToken $AuthToken
+        Write-SnipeITRunReport -Run $run -AuthToken $normalizedToken
         exit $run.ExitCode
     }
     catch {
-        $safeError = Protect-SnipeITText -InputObject $_.Exception.Message -Token $AuthToken
+        $safeError = Protect-SnipeITText -InputObject $_.Exception.Message -Token $normalizedToken
         Write-Error $safeError
         exit 1
     }
