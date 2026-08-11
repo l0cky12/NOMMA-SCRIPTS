@@ -23,11 +23,9 @@ confirmation, per-user fault isolation, and a timestamped CSV report.
 
 ## File layout
 
-- `Remove-EducationPlusLicense-InactiveOU.ps1` — CLI entry point + orchestration
-  (dry-run default, `-Apply` + confirmation gate, per-user fault isolation, exit 1 on errors)
-- `EducationPlusLicenseLogic.psm1` — pure, testable logic (CSV parse / SKU test / report rows)
-- `GoogleAdminApiAdapter.psm1` — thin Google API adapters; loads the `Google.Apis.*`
-  assemblies lazily (only on a real call, so mock tests never load them)
+- `Remove-EducationPlusLicense-InactiveOU.ps1` — one self-contained script containing
+  the logic, Google API adapter, and orchestration (dry-run default, `-Apply` +
+  confirmation gate, per-user fault isolation, exit 1 on errors)
 - `tests/EducationPlusLicense.Tests.ps1` — Pester v6 mock tests (no live Google)
 
 ## Prerequisites

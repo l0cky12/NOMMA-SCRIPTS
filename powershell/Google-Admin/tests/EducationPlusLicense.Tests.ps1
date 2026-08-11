@@ -1,19 +1,8 @@
-$googleAdminRoot = Split-Path -Parent $PSScriptRoot
-$entryPoint = Join-Path $googleAdminRoot 'Remove-EducationPlusLicense-InactiveOU.ps1'
-$orchestratorModule = New-Module -Name EducationPlusOrchestrator -ScriptBlock {
-    param($Path, $Root)
-
-    $script:googleAdminRoot = $Root
-    . $Path
-    Export-ModuleMember -Function @(
-        'Invoke-EducationPlusLicenseRemoval',
-        'Get-SafeEduPlusErrorMessage'
-    )
-} -ArgumentList $entryPoint, $googleAdminRoot
-Import-Module -ModuleInfo $orchestratorModule -Force
+BeforeAll {
+    . $PSScriptRoot/../Remove-EducationPlusLicense-InactiveOU.ps1
+}
 
 Describe 'Education Plus license tool' {
-InModuleScope EducationPlusOrchestrator {
 BeforeAll {
     $script:secretSentinel = 'CLIENT_SECRET_SENTINEL_9f77a2'
     $script:credentialsPath = Join-Path $TestDrive 'client-secrets.json'
@@ -227,7 +216,6 @@ Describe 'Report row formatting' {
         $row.Error | Should -Be ''
         $row.Mode | Should -Be 'apply'
         $row.Timestamp | Should -Be '2026-08-11T12:34:56.0000000Z'
-    }
 }
 }
 }
