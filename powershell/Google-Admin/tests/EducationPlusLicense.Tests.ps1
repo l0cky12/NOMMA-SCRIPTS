@@ -81,6 +81,34 @@ Describe 'Education Plus license orchestration' {
         ($rows | Where-Object Email -eq 'bob@example.com').Status | Should -Be 'already-clean'
     }
 
+    It 'forces dry-run when both DryRun and Apply are specified' {
+        $csvPath = Join-Path $TestDrive 'forced-dry-run-users.csv'
+        "Email`nalice@example.com`nbob@example.com" | Set-Content -LiteralPath $csvPath -Encoding utf8NoBOM
+        $reportPath = Join-Path $TestDrive 'forced-dry-run-report'
+        Mock -CommandName Get-GApiUserLicenseSkus -MockWith {
+            param($Email, $Credential)
+            if ($Email -eq 'alice@example.com') {
+                return @('Google-Apps-For-Education-Plus')
+            }
+            return @()
+        }
+        Mock -CommandName Read-Host -MockWith { throw 'Read-Host must not be called in forced dry-run mode' }
+
+        $exitCode = Invoke-EducationPlusLicenseRemoval -CsvPath $csvPath -CredentialsPath $script:credentialsPath `
+            -ReportPath $reportPath -Apply -DryRun
+
+        $exitCode | Should -Be 0
+        Should -Invoke -CommandName Read-Host -Times 0 -Exactly
+        Should -Invoke -CommandName Remove-GApiLicenseAssignment -Times 0 -Exactly
+        $rows = @(Import-Csv -LiteralPath (Get-ChildItem -LiteralPath $reportPath -File -Filter '*.csv').FullName)
+        ($rows | Where-Object Email -eq 'alice@example.com').Status | Should -Be 'dry-run-remove'
+        ($rows | Where-Object Email -eq 'alice@example.com').EduPlusAfter | Should -Be `
+            ($rows | Where-Object Email -eq 'alice@example.com').EduPlusBefore
+        ($rows | Where-Object Email -eq 'bob@example.com').Status | Should -Be 'already-clean'
+        $rows.Mode | Should -Not -Contain 'apply'
+        $rows.Mode | Should -Contain 'dry-run'
+    }
+
     It 'exits 2 and performs no removal when apply confirmation is not YES' {
         $csvPath = Join-Path $TestDrive 'declined-users.csv'
         "Email`nalice@example.com" | Set-Content -LiteralPath $csvPath -Encoding utf8NoBOM

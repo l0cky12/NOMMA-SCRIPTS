@@ -23,6 +23,9 @@
     Enables license removal after one interactive confirmation. Without this
     switch, the script is a dry run and makes zero removal calls.
 
+.PARAMETER DryRun
+    Force dry-run mode. Does not make any license changes and overrides -Apply.
+
 .PARAMETER ReportPath
     Directory in which the timestamped CSV report is written.
 
@@ -38,6 +41,12 @@
         -CredentialsPath ./client-secrets.json -ReportPath ./reports
 
     Performs a dry run against users.csv.
+
+.EXAMPLE
+    ./Remove-EducationPlusLicense-InactiveOU.ps1 -OuTarget -DryRun `
+        -CredentialsPath ./client-secrets.json -ReportPath ./reports
+
+    Forces a dry run against the default inactive OU.
 
 .EXAMPLE
     ./Remove-EducationPlusLicense-InactiveOU.ps1 -OuTarget `
@@ -56,6 +65,8 @@ param(
     [string]$OuPath = 'NOMMA.net/zMisc/Inactive',
 
     [switch]$Apply,
+
+    [switch]$DryRun,
 
     [string]$ReportPath = (Join-Path $PSScriptRoot 'reports'),
 
@@ -585,6 +596,7 @@ function Invoke-EducationPlusLicenseRemoval {
         [switch]$OuTarget,
         [string]$OuPath = 'NOMMA.net/zMisc/Inactive',
         [switch]$Apply,
+        [switch]$DryRun,
         [string]$ReportPath = (Join-Path $PSScriptRoot 'reports'),
         [string]$CredentialsPath,
         [string]$EducationPlusSkuId = 'Google-Apps-For-Education-Plus'
@@ -609,7 +621,15 @@ function Invoke-EducationPlusLicenseRemoval {
     }
 
     $targets = @(Resolve-EduPlusTargets -CsvPath $CsvPath -OuTarget:$OuTarget -OuPath $OuPath -Credential $credentialContext)
-    $mode = if ($Apply) { 'apply' } else { 'dry-run' }
+    $mode = if ($Apply -and -not $DryRun) { 'apply' } else { 'dry-run' }
+    if ($DryRun) {
+        if ($Apply) {
+            Write-Host '[DryRun] -Apply was specified but -DryRun takes precedence; no changes will be made.'
+        }
+        else {
+            Write-Host '[DryRun] Forced dry run - no license changes will be made.'
+        }
+    }
     $timestamp = [datetime]::UtcNow
     $states = [System.Collections.Generic.List[object]]::new()
 
@@ -632,7 +652,7 @@ function Invoke-EducationPlusLicenseRemoval {
         }
     }
 
-    if ($Apply) {
+    if ($mode -eq 'apply') {
         $candidateCount = @($states | Where-Object { [string]::IsNullOrEmpty($_.Error) -and $_.Before }).Count
         $sourceDescription = if ($OuTarget) { $OuPath } else { "CSV '$CsvPath'" }
         $answer = Read-Host "[Apply] Are you sure you want to remove the Education Plus license from $candidateCount user(s) in ${sourceDescription}? Type YES to continue"
@@ -656,7 +676,7 @@ function Invoke-EducationPlusLicenseRemoval {
             continue
         }
 
-        if (-not $Apply) {
+        if ($mode -eq 'dry-run') {
             $results.Add((New-EduPlusResult -Email $state.Email -Status 'dry-run-remove' -EduPlusBefore $true -EduPlusAfter $true -Error ''))
             Write-Host "[$($state.Email)] Education Plus: present -> present (dry-run plan: remove)"
             continue

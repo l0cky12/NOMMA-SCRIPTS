@@ -95,6 +95,7 @@ separately approved step — always run dry-run against the real list first.
 | `-CsvPath` | Path to a CSV of email addresses (default input mode) |
 | `-OuTarget` | Switch: pull the live user list from this OU instead of a CSV |
 | `-Apply` | **Required** to make license changes. Off by default (dry-run). |
+| `-DryRun` | Force dry-run: print the plan and make zero changes. Overrides `-Apply`. |
 | `-ReportPath` | Directory for the timestamped CSV report |
 
 Remove only if you have verified the exact Education Plus SKU ID for your
