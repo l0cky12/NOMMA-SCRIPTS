@@ -42,6 +42,7 @@
     name: "{{ item.username }}"
     password: "{{ admin_password_hash }}"
   loop: "{{ admin_users }}"
+  when: item.username != ansible_user
   no_log: true
 
 # ──────────────────────────────────────────────────────────
